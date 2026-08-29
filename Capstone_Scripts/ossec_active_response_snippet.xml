@@ -1,0 +1,16 @@
+<command>
+  <name>wazuh-orchestrator</name>
+  <executable>wazuh_orchestrator.py</executable>
+  <expect>srcip</expect>
+  <timeout_allowed>yes</timeout_allowed>
+</command>
+
+<active-response>
+  <command>wazuh-orchestrator</command>
+  <location>local</location>
+  <!-- Nakalista dito ang mga custom heuristics at default SSH rules -->
+  <rules_id>5712,5720,5763,5551,100001,100002,100003,100004,100005,100006</rules_id>
+  <timeout>3600</timeout>
+  <!-- Escalating Ban Time: 1hr -> 6hrs -> 12hrs -> 24hrs -->
+  <repeated_offenders>60,360,720,1440</repeated_offenders>
+</active-response>
