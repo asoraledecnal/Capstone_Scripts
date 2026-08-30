@@ -1,0 +1,42 @@
+<group name="capstone_orchestration,">
+
+  <!-- Rule 100001: Mass File Modification (Ransomware Behavior) -->
+  <rule id="100001" level="10">
+    <if_matched_group>syscheck</if_matched_group>
+    <match>.encrypted</match>
+    <description>Heuristic Alert: Ransomware file extension (.encrypted) detected.</description>
+  </rule>
+
+  <!-- Rule 100002: Internal Port Sweeping (Lateral Movement) -->
+  <rule id="100002" level="10">
+    <match>IN= OUT=</match>
+    <description>Heuristic Alert: Internal port sweeping or network scanning detected.</description>
+  </rule>
+
+  <!-- Rule 100003: Data Exfiltration Anomaly (Large Outbound Traffic) -->
+  <rule id="100003" level="10">
+    <match>large outbound transfer anomaly</match>
+    <description>Heuristic Alert: Potential data exfiltration to external IP address.</description>
+  </rule>
+
+  <!-- Rule 100004: Suspicious Process Spawning (Living off the Land) -->
+  <rule id="100004" level="12">
+    <category>ossec</category>
+    <decoded_as>json</decoded_as>
+    <match>powershell.exe</match>
+    <description>Heuristic Alert: Suspicious process spawning (Office application executing PowerShell).</description>
+  </rule>
+
+  <!-- Rule 100005: Sustained Resource Exhaustion (Cryptojacking/C2) -->
+  <rule id="100005" level="10">
+    <match>resource exhaustion cpu high</match>
+    <description>Heuristic Alert: Sustained CPU/RAM resource exhaustion with external socket.</description>
+  </rule>
+
+  <!-- Rule 100006: Impossible Travel / Pass-the-Hash Anomaly -->
+  <rule id="100006" level="12">
+    <match>authentication anomaly lateral movement</match>
+    <description>Heuristic Alert: Rapid multi-server authentication or geo-velocity anomaly.</description>
+  </rule>
+
+</group>
