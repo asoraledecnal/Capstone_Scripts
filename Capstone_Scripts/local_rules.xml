@@ -3,14 +3,12 @@
   <!-- Rule 100001: Mass File Modification (Ransomware Behavior) -->
   <rule id="100001" level="10">
     <if_matched_group>syscheck</if_matched_group>
-    <match>ossec: monitoring file modification</match>
-    <options>alert_by_email</options>
-    <description>Heuristic Alert: Mass file modifications detected (Possible Ransomware activity).</description>
+    <match>.encrypted</match>
+    <description>Heuristic Alert: Ransomware file extension (.encrypted) detected.</description>
   </rule>
 
   <!-- Rule 100002: Internal Port Sweeping (Lateral Movement) -->
   <rule id="100002" level="10">
-    <decoded_as>iptables</decoded_as>
     <match>IN= OUT=</match>
     <description>Heuristic Alert: Internal port sweeping or network scanning detected.</description>
   </rule>

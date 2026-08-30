@@ -69,16 +69,21 @@ def main():
 
     command = data.get("command")
     alert_payload = data.get("parameters", {}).get("alert", {})
-    
+
     # Extract Rule ID for Heuristic Routing
     rule_id = str(alert_payload.get("rule", {}).get("id"))
-    
+
     # IP Extraction logic based on alert type
     target_ip = alert_payload.get("data", {}).get("srcip") or alert_payload.get("data", {}).get("destip")
-    
+
     if not target_ip:
         target_ip = alert_payload.get("srcip")
-    
+
+    # --- FALLBACK PARA SA RANSOMWARE / AGENT IP ---
+    if not target_ip:
+        target_ip = alert_payload.get("agent", {}).get("ip")
+    # --------------------------------------------------------------
+
     if not target_ip:
         print(json.dumps(data))
         sys.exit(1)
@@ -111,7 +116,7 @@ def main():
             if process_name not in ["chrome.exe", "firefox.exe", "vmware-vmx.exe", "msedge.exe"]:
                 log_message(f"DEBUG: Rule 100005 (Cryptojacking) triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)
-        
+
         # 5. Catch-all for Lateral Movement / Living off the Land
         elif rule_id in ["100002", "100004", "100006"]:
             log_message(f"DEBUG: Heuristic Rule {rule_id} triggered. Blocking {target_ip}.")
