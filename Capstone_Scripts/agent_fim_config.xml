@@ -1,5 +1,0 @@
-<agent_config>
-  <syscheck>
-    <directories realtime="yes">/home/admin123/ransomware_test</directories>
-  </syscheck>
-</agent_config>
