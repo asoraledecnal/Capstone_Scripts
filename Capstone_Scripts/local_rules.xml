@@ -7,9 +7,17 @@
     <description>Heuristic Alert: Ransomware file extension (.encrypted) detected.</description>
   </rule>
 
+  <!-- Base Rule para itaas ang level ng UFW Blocks (Para sa Rule 100002) -->
+  <rule id="100010" level="3">
+    <if_sid>4100</if_sid>
+    <match>[UFW BLOCK]</match>
+    <description>UFW Firewall Block event caught.</description>
+  </rule>
+
   <!-- Rule 100002: Internal Port Sweeping (Lateral Movement) -->
-  <rule id="100002" level="10">
-    <match>IN= OUT=</match>
+  <rule id="100002" level="10" frequency="5" timeframe="60">
+    <if_matched_sid>100010</if_matched_sid>
+    <same_source_ip />
     <description>Heuristic Alert: Internal port sweeping or network scanning detected.</description>
   </rule>
 
