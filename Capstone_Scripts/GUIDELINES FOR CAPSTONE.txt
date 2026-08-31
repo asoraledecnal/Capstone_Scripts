@@ -20,7 +20,7 @@ sudo nano /var/ossec/etc/ossec.conf
 ==========================================================
 
 
-PYTHON SCRIPT FOR sudo nano /var/ossec/active-response/bin/wazuh_sophos_blocker.py
+PYTHON SCRIPT FOR sudo nano /var/ossec/active-response/bin/wazuh_orchestrator.py
 
 ==========================================================
 #!/usr/bin/env python3

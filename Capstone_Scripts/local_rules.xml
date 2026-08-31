@@ -7,7 +7,7 @@
     <description>Heuristic Alert: Ransomware file extension (.encrypted) detected.</description>
   </rule>
 
-  <!-- Rule 100010: Base Rule para saluhin ang UFW Blocks (Stepping stone para sa Rule 100002) -->
+  <!-- Rule 100010: Base Rule para sa UFW Blocks -->
   <rule id="100010" level="3">
     <if_sid>4100</if_sid>
     <match>[UFW BLOCK]</match>
@@ -15,7 +15,6 @@
   </rule>
 
   <!-- Rule 100002: Internal Port Sweeping (Lateral Movement) -->
-  <!-- EXPLANATION: Kapag may 5 UFW blocks galing sa iisang IP sa loob ng 60 seconds, ito ay Port Scan -->
   <rule id="100002" level="10" frequency="5" timeframe="60">
     <if_matched_sid>100010</if_matched_sid>
     <same_source_ip />

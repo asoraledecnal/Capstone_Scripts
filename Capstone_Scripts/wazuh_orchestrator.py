@@ -1,17 +1,17 @@
+PYTHON SCRIPT FOR sudo nano /var/ossec/active-response/bin/wazuh_orchestrator.py
 #!/usr/bin/env python3
 import sys
 import json
 import requests
 import urllib3
 
-# Iniiwasan ang SSL warnings dahil self-signed certificate ang gamit ng firewall lab
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 LOG_FILE = "/var/ossec/logs/active-responses.log"
 
 # --- CAPSTONE HEURISTIC WHITELISTS ---
-# EXPLANATION: Mga IPs na hindi pwedeng i-block ng script para hindi ma-lockout ang IT admins
-WHITELISTED_IPS = ["127.0.0.1", "172.16.16.100", "172.16.16.20"] 
+# Kumpleto na ito: 100 (Target VM), 20 (Wazuh Server), at 16 (Sophos XG)
+WHITELISTED_IPS = ["127.0.0.1", "172.16.16.100", "172.16.16.20", "172.16.16.16"] 
 WHITELISTED_SUBNETS = ["192.168.202."] 
 
 def is_whitelisted(ip):
@@ -28,7 +28,6 @@ def log_message(msg):
         f.write(f"wazuh_orchestrator: {msg}\n")
 
 # --- SOPHOS REST API FUNCTIONS ---
-# EXPLANATION: Gumagamit ito ng modern REST API papunta sa Sophos XG (172.16.16.16) imbes na basic DB scripts
 def block_ip_on_sophos(ip):
     sophos_ip = "172.16.16.16"
     xml_payload = f'''<Request><Login><Username>admin</Username><Password>St0rage_Master_Key</Password></Login><Set><IPHost><Name>Blocked_{ip}</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>{ip}</IPAddress><HostGroupList><HostGroup>Wazuh_Blacklist_Group</HostGroup></HostGroupList></IPHost></Set></Request>'''
@@ -72,14 +71,12 @@ def main():
 
     command = data.get("command")
     alert_payload = data.get("parameters", {}).get("alert", {})
-
     rule_id = str(alert_payload.get("rule", {}).get("id"))
+    
+    # Target IP Extraction
     target_ip = alert_payload.get("data", {}).get("srcip") or alert_payload.get("data", {}).get("destip")
-
     if not target_ip:
         target_ip = alert_payload.get("srcip")
-
-    # Fallback kapag galing sa loob ng system ang attack (katulad ng Ransomware)
     if not target_ip:
         target_ip = alert_payload.get("agent", {}).get("ip")
 
@@ -87,34 +84,40 @@ def main():
         print(json.dumps(data))
         sys.exit(1)
 
-    # --- COMMAND EXECUTION BASED ON RULE ID ---
+    # --- COMMAND EXECUTION ---
     if command == "add":
-        if rule_id in ["5712", "5720", "5763", "5551"]:
-            if not is_whitelisted(target_ip):
+        # GLOBAL WHITELIST CHECK: Kung nasa whitelist, ignore kagad bago pa i-process ang rules
+        if is_whitelisted(target_ip):
+            log_message(f"DEBUG: IP {target_ip} is Whitelisted. Ignoring Alert from Rule {rule_id}.")
+        else:
+            # 1. SSH Brute Force
+            if rule_id in ["5712", "5720", "5763", "5551"]:
                 log_message(f"DEBUG: Rule {rule_id} (SSH) triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)
-            else:
-                log_message(f"DEBUG: IP {target_ip} is Whitelisted. Ignoring SSH Alert.")
 
-        elif rule_id == "100001":
-            process_name = alert_payload.get("data", {}).get("process_name", "")
-            if process_name not in ["explorer.exe", "TiWorker.exe", "msiexec.exe"]:
-                log_message(f"DEBUG: Rule 100001 (Ransomware) triggered. Isolating {target_ip}.")
+            # 2. Ransomware Behavior
+            elif rule_id == "100001":
+                process_name = alert_payload.get("data", {}).get("process_name", "")
+                if process_name not in ["explorer.exe", "TiWorker.exe", "msiexec.exe"]:
+                    log_message(f"DEBUG: Rule 100001 (Ransomware) triggered. Isolating {target_ip}.")
+                    block_ip_on_sophos(target_ip)
+
+            # 3. Data Exfiltration
+            elif rule_id == "100003":
+                log_message(f"DEBUG: Rule 100003 (Exfiltration) triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)
 
-        elif rule_id == "100003":
-            log_message(f"DEBUG: Rule 100003 (Exfiltration) triggered. Blocking {target_ip}.")
-            block_ip_on_sophos(target_ip)
+            # 4. Cryptojacking / Resource Exhaustion
+            elif rule_id == "100005":
+                process_name = alert_payload.get("data", {}).get("process_name", "")
+                if process_name not in ["chrome.exe", "firefox.exe", "vmware-vmx.exe", "msedge.exe"]:
+                    log_message(f"DEBUG: Rule 100005 (Cryptojacking) triggered. Blocking {target_ip}.")
+                    block_ip_on_sophos(target_ip)
 
-        elif rule_id == "100005":
-            process_name = alert_payload.get("data", {}).get("process_name", "")
-            if process_name not in ["chrome.exe", "firefox.exe", "vmware-vmx.exe", "msedge.exe"]:
-                log_message(f"DEBUG: Rule 100005 (Cryptojacking) triggered. Blocking {target_ip}.")
+            # 5. Catch-all for Lateral Movement / Network Scans
+            elif rule_id in ["100002", "100004", "100006"]:
+                log_message(f"DEBUG: Heuristic Rule {rule_id} triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)
-
-        elif rule_id in ["100002", "100004", "100006"]:
-            log_message(f"DEBUG: Heuristic Rule {rule_id} triggered. Blocking {target_ip}.")
-            block_ip_on_sophos(target_ip)
 
     elif command == "delete":
         log_message(f"INFO: Timeout reached. Sending UNBLOCK payload to Sophos XG for IP {target_ip}...")
