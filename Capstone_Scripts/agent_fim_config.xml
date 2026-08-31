@@ -1,5 +1,6 @@
 <agent_config>
   <syscheck>
-    <directories realtime="yes">/home/admin123/ransomware_test</directories>
+    <!-- EXPLANATION: Naka-realtime para the moment na maging .encrypted ang file, mag-a-alert agad -->
+    <directories realtime="yes">/tmp/important_files</directories>
   </syscheck>
 </agent_config>

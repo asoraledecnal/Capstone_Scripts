@@ -1,0 +1,98 @@
+SIMULATION
+
+=========================================
+IP ADDRESSES CONFIG OF NODES:
+
+ISP Core Router (VyOS)
+eth0: 203.0.113.1/30
+eth1: 10.10.10.1/24
+eth2: 100.64.0.1/30
+eth3: 192.168.202.135/24
+
+Batangas Regional Hub (LAN)
+Wazuh Server (ens3): 172.16.16.100/24
+Batangas Mgmt PC (ens3): 172.16.16.20/24
+
+Laguna Branch (LAN)
+Laguna Mgmt PC (ens3): 192.168.21.12/24
+
+Remote Worker
+Remote Mgmt PC Physical/WAN (ens3): 10.10.10.11/24
+Remote Mgmt PC VPN Tunnel (tun0): 10.81.0.2/24
+
+
+
+=========================================
+PASSWORDS:
+
+EVE-NG terminal: root | eve
+EVE-NG website: admin | eve
+Laguna branch/regional hub: delarosa1106
+SOPHOS terminal: St0rage_Master_Key
+PFSENSE website(192.168.21.1): admin | delarosa1106 | laguna-spoke.dict.gov.ph | admin@192.168.21.12 | PSK: Laguna_Spoke_DICT_Capstone123!
+Sophos Firewall: admin | St0rage_Master_Key |
+VyOS: vyos | vyos
+remote vpn: vpn_admin | St0rage_Master_Key
+wazuh-server: wazuhadmin | delarosa1106
+wazuh-webdashboard: admin | ki3w0ObfD64aKoJ38o*EguNMB4FsJV0.
+wazuh-api: wazuh_api_user | St0rage_Master_Key | api@dict4a-lab.local
+
+=========================================
+Kumpletong Sophos Firewall License Renewal & Reconfiguration Guide
+Mag-download ng system backup sa lumang Sophos web GUI (System > Backup & firmware > Backup now) at tandaan ang encryption password.
+
+Gumawa ng panibagong account sa Sophos Central portal gamit ang bagong email address.
+
+I-click ang "Try virtual firewall" sa portal at kopyahin ang bagong evaluation serial number (nagsisimula sa letrang "V").
+
+I-stop at i-Wipe ang mismong Sophos firewall node sa EVE-NG topology.
+
+I-start ulit ang node at buksan ang web setup GUI ([https://172.16.16.16:4444](https://172.16.16.16:4444)) gamit ang iyong virtual admin machine.
+
+I-configure nang manual ang internet routing (PortB):
+
+IP address: 203.0.113.2
+
+Subnet: /30 (255.255.255.252)
+
+Gateway IP: 203.0.113.1 (IP ng VyOS router natin)
+
+DNS server: 8.8.8.8 (Google DNS)
+
+Gumawa ng temporary admin password, lagyan ng temporary hostname, at i-set ang time zone sa Asia/Manila. Siguraduhing naka-check ang auto-update firmware.
+
+I-paste ang bagong Serial Number na kinopya mo mula sa Sophos portal para ma-activate ang lisensya.
+
+I-click ang "Skip to finish" sa ibaba ng "Basic setup is complete" page para i-bypass ang paggawa ng manual LAN policies.
+
+Hayaang mag-update at mag-reboot: Maghihintay ka rito habang dina-download at ini-install ng firewall ang latest firmware pabalik sa v22.0.1 (ito yung step na nasa screenshot mo).
+
+I-Restore ang iyong orihinal na configuration: Pagkatapos ng reboot, mag-login gamit ang temporary password, pumunta sa System > Backup & firmware > Backup & restore, i-upload ang .tar backup file, ilagay ang encryption password, at i-click ang Upload and restore.
+
+2nd Firewall License- V01001PFH6WM60A
+3rd Firewall License- V010012K33X4TBC
+
+=========================================
+QUESTIONS:
+
+is this capstone really defendable? like ano ba prinopromote naten here maliban sa full-tunnel vpn, is it like parang vpn lang sya? so bakit hindi nalang mag vpn ung mga workers ng DICT if ganon?
+
+= ahh i know, i think we are promoting the present network architecture security of the DICT na open/prone sa different cyber attacks, so by implementing this network architecture, we are not only just centralizing their ways of communication, but also we improved the security and efficiency of their workflow? tama ba?
+
+pano namen madedefend toh like, how are we gonna tell to the panel na secured tlga etong architecture namen? should we learn how to attack?
+
+paano kapag nasa loob ng Batangas Sophos firewall network ung attacker, ehh hindi naman dadaan sa firewall ng Sophos yon diba? ano kaya?
+
+=========================================
+NOTES TO REMEMBER
+
+1. Justify the "Behavioral Heuristics Analytics" NamePanels hate buzzwords if they are not backed up. Do not claim you "built" a behavioral heuristic engine from scratch. Instead, state:"Wazuh acts as our primary behavioral and signature-based heuristic engine by flagging log anomalies. Our Python script extends this capability by using Generative AI to perform contextual heuristic analysis on the alerted traffic data."
+
+2. Address the "AI Speed and Latency" WeaknessA panelist will ask: "AI APIs take 2 to 5 seconds to reply. Isn't that too slow to stop a live cyber attack?"Your Defense: "Yes, AI is too slow for immediate packet-filtering. Therefore, our architecture uses a multi-tiered defense. Traditional firewalls and Wazuh signatures handle instantaneous blocking. The Gemini AI is deployed as a Tier-2 automated analyst to handle complex, multi-stage behavioral threats that signature rules miss, reducing human analyst fatigue."
+
+The Live Demo: Run a simulated attack (like a Brute Force or Malicious Port Scan) from an attacker machine in EVE-NG. Show Wazuh alerting, the Python console displaying the Gemini AI reasoning, and finally, show the Sophos XG web interface automatically adding the attacker's IP to the "Blocked Hosts" firewall rule group.The Cost Metric: Because you are using cloud APIs, document the data payload sizes. Prove that sending short log strings to the Gemini API fits well within the free-tier limits or token budget, making it cost-effective for localized branches like a regional DICT office.
+
+Lance: Ang nireport kasi natin nung huli about heurisitics yung status and performance ng ends....
+uu, kayang-kayang basahin ng wazuh agents yan out-of-the-box gamit 'yung syscollector module nito, namo-monitor nito 'yung hardware specs, active processes, memory usage, at bukas na network ports sa bawat endpoint, papadala ng agent ang lahat ng raw telemetry na ito sa OpenSearch indexing engine natin sa backend... thennn ndi natin ilalagay ung mabigat na AI sa mismong mga endpoints, kukuha tayo ng data mula sa OpenSearch gamit ang modern REST APIs, tapos ipapasa natin sa isang hiwalay na py script na naka-link sa isang external AI (Gemini API). ung AI ang magbabasa ng log patterns para maghanap ng "anomalies" (tulad ng biglaang pagtaas ng CPU/RAM usage at siya ang mag-uutos sa Sophos XGS na mag-block
+
+3. sa simulation, nawawala ung net node kada start... so need palaging idisconnect ung connection, delete ung net node, gawa ng bagong net node (management), then connect, tapos boom meron na ulit..

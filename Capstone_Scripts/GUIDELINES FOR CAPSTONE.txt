@@ -1,0 +1,265 @@
+GUIDELINES FOR CAPSTONE
+
+PUT THIS IN THE <active-response> part.
+sudo nano /var/ossec/etc/ossec.conf
+==========================================================
+<command>
+    <name>wazuh-sophos-blocker</name>
+    <executable>wazuh_sophos_blocker.py</executable>
+    <expect>srcip</expect>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+
+  <active-response>
+    <command>wazuh-sophos-blocker</command>
+    <location>local</location>
+    <rules_id>5712,5720,5763,5551</rules_id>
+    <timeout>3600</timeout>
+    <repeated_offenders>60,360,720,1440</repeated_offenders>
+  </active-response>
+==========================================================
+
+
+PYTHON SCRIPT FOR sudo nano /var/ossec/active-response/bin/wazuh_sophos_blocker.py
+
+==========================================================
+#!/usr/bin/env python3
+import sys
+import json
+import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+LOG_FILE = "/var/ossec/logs/active-responses.log"
+
+def log_message(msg):
+    with open(LOG_FILE, "a") as f:
+        f.write(f"wazuh_sophos_blocker: {msg}\n")
+
+def block_ip_on_sophos(ip):
+    sophos_ip = "172.16.16.16"
+    xml_payload = f'''<Request><Login><Username>admin</Username><Password>St0rage_Master_Key</Password></Login><Set><IPHost><Name>Blocked_{ip}</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>{ip}</IPAddress><HostGroupList><HostGroup>Wazuh_Blacklist_Group</HostGroup></HostGroupList></IPHost></Set></Request>'''
+    url = f"https://{sophos_ip}:4444/webconsole/APIController"
+    try:
+        response = requests.post(url, data={'reqxml': xml_payload}, verify=False)
+        if "Configuration applied successfully" in response.text:
+            log_message(f"INFO: Successfully blocked IP {ip} on Sophos XG.")
+        else:
+            log_message(f"ERROR: Failed to block IP. Sophos response: {response.text}")
+    except Exception as e:
+        log_message(f"ERROR: API request failed - {str(e)}")
+
+def unblock_ip_on_sophos(ip):
+    sophos_ip = "172.16.16.16"
+    
+    # STEP 1: I-update ang IP object at tanggalin ito sa Wazuh_Blacklist_Group (Empty HostGroupList)
+    xml_payload_step1 = f'''<Request><Login><Username>admin</Username><Password>St0rage_Master_Key</Password></Login><Set><IPHost><Name>Blocked_{ip}</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>{ip}</IPAddress><HostGroupList></HostGroupList></IPHost></Set></Request>'''
+    
+    # STEP 2: Tuluyang burahin ang IP object ngayong wala na itong group dependency
+    xml_payload_step2 = f'''<Request><Login><Username>admin</Username><Password>St0rage_Master_Key</Password></Login><Remove><IPHost><Name>Blocked_{ip}</Name></IPHost></Remove></Request>'''
+    
+    url = f"https://{sophos_ip}:4444/webconsole/APIController"
+    try:
+        # I-run ang Step 1
+        requests.post(url, data={'reqxml': xml_payload_step1}, verify=False)
+        
+        # I-run ang Step 2
+        response = requests.post(url, data={'reqxml': xml_payload_step2}, verify=False)
+        
+        if "status=\"200\"" in response.text or "Configuration applied successfully" in response.text:
+            log_message(f"INFO: Successfully REMOVED IP {ip} from Sophos XG (Timeout Expired).")
+        else:
+            log_message(f"ERROR: Failed to remove IP. Sophos response: {response.text}")
+    except Exception as e:
+        log_message(f"ERROR: Unblock API request failed - {str(e)}")
+
+def main():
+    log_message("DEBUG: Script started. Reading Wazuh payload...")
+
+    input_data = sys.stdin.readline()
+
+    if not input_data:
+        log_message("ERROR: No input received from Wazuh.")
+        sys.exit(1)
+
+    try:
+        data = json.loads(input_data)
+    except json.JSONDecodeError:
+        log_message("ERROR: Invalid JSON payload received.")
+        sys.exit(1)
+
+    command = data.get("command")
+    attacker_ip = data.get("parameters", {}).get("alert", {}).get("data", {}).get("srcip")
+    
+    if not attacker_ip:
+        log_message("ERROR: No Source IP found in Wazuh alert payload.")
+        print(json.dumps(data))
+        sys.exit(1)
+
+    if command == "add":
+        log_message(f"INFO: Malicious IP detected: {attacker_ip}. Sending BLOCK payload to Sophos XG...")
+        block_ip_on_sophos(attacker_ip)
+    elif command == "delete":
+        log_message(f"INFO: Timeout reached. Sending UNBLOCK payload to Sophos XG for IP {attacker_ip}...")
+        unblock_ip_on_sophos(attacker_ip)
+    else:
+        log_message(f"ERROR: Unknown command - {command}")
+
+    # REQUIRED BY WAZUH: Send the JSON payload back to stdout to confirm execution success
+    print(json.dumps(data))
+    sys.stdout.flush()
+
+if __name__ == "__main__":
+    main()
+
+==========================================================
+
+brute force attack script	
+
+for i in {1..8}; do ssh -o StrictHostKeyChecking=no wazuhadmin@172.16.16.100; done
+
+==========================================================
+PYTHON SCRIPT FOR GEMINI AI
+
+import requests
+
+import json
+
+import urllib3
+
+
+
+# I-disable ang SSL warnings para sa EVE-NG lab
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+
+# --- CONFIGURATION VARIABLES ---
+
+OPENSEARCH_URL = "https://172.16.16.100:9200"
+
+OS_USER = "admin"
+
+OS_PASS = "admin" # Baguhin kung iniba mo ang default password
+
+INDEX_NAME = "wazuh-alerts-*"
+
+
+
+def get_syscollector_logs():
+
+    print("[*] Pulling CPU/RAM telemetry from OpenSearch...")
+
+    search_url = f"{OPENSEARCH_URL}/{INDEX_NAME}/_search"
+
+   
+
+    # Kukuha tayo ng 5 sample hardware logs mula sa huling 10 minuto
+
+    payload = {
+
+      "size": 5,
+
+      "query": {
+
+        "bool": {
+
+          "must": [
+
+            {"match": {"rule.groups": "syscollector"}}
+
+          ],
+
+          "filter": [
+
+            {"range": {"@timestamp": {"gte": "now-10m"}}}
+
+          ]
+
+        }
+
+      }
+
+    }
+
+   
+
+    headers = {"Content-Type": "application/json"}
+
+   
+
+    try:
+
+        response = requests.post(
+
+            search_url,
+
+            auth=(OS_USER, OS_PASS),
+
+            headers=headers,
+
+            data=json.dumps(payload),
+
+            verify=False
+
+        )
+
+       
+
+        if response.status_code == 200:
+
+            data = response.json()
+
+            hits = data['hits']['hits']
+
+            print(f"[+] Successfully retrieved {len(hits)} logs!")
+
+           
+
+            if len(hits) > 0:
+
+                print(json.dumps(hits[0]['_source'], indent=2))
+
+        else:
+
+            print(f"[-] Error {response.status_code}: {response.text}")
+
+           
+
+    except Exception as e:
+
+        print(f"[-] Connection failed: {e}")
+
+
+
+if __name__ == "__main__":
+
+    get_syscollector_logs()
+
+
+==========================================================
+BATANGASHUBPC NETPLAN CONFIGURATIONS:
+
+sudo nano /etc/netplan/00-installer-config.yaml
+
+network:
+  ethernets:
+    ens3:
+      addresses: [172.16.16.20/24]
+      routes:
+        - to: 10.0.0.0/8
+          via: 172.16.16.16
+        - to: 192.168.21.0/24
+          via: 172.16.16.16
+    ens4:
+      dhcp4: true
+  version: 2
+==========================================================
+
+IMPORTANT COMMANDS:
+sudo tail -f /var/ossec/logs/active-responses.log (to see the live feed of wazuh blocking/unblocking the IP)
+sudo systemctl restart wazuh-manager (to restart the service[wazuh-manager] and apply changes)
+sudo truncate -s 0 /var/ossec/logs/active-responses.log (to clear the logs, basically truncate anything)
+

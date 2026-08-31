@@ -1,19 +1,22 @@
-<localfile>
+<!-- EXPLANATION: Binibigyan nito ng kakayahan ang Wazuh na basahin ang Ubuntu firewall logs -->
+  <localfile>
     <log_format>syslog</log_format>
     <location>/var/log/syslog</location>
   </localfile>
 
-<command>
-  <name>wazuh-orchestrator</name>
-  <executable>wazuh_orchestrator.py</executable>
-  <timeout_allowed>yes</timeout_allowed>
-</command>
+  <!-- EXPLANATION: Dine-define nito yung Python SOAR script mo bilang isang executable command -->
+  <command>
+    <name>wazuh-orchestrator</name>
+    <executable>wazuh_orchestrator.py</executable>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
 
-<active-response>
-  <command>wazuh-orchestrator</command>
-  <location>server</location>
-  <!-- Nakalista dito ang mga custom heuristics at default SSH rules -->
-  <rules_id>5712,5720,5763,5551,100001,100002,100003,100004,100005,100006</rules_id>
-  <!-- 1 minute timeout for testing purposes muna -->
-  <timeout>60</timeout>
-</active-response>
+  <!-- EXPLANATION: Iko-connect nito ang custom rules mo sa Python script para mag-lockdown -->
+  <active-response>
+    <command>wazuh-orchestrator</command>
+    <location>server</location>
+    <rules_id>5712,5720,5763,5551,100001,100002,100003,100004,100005,100006</rules_id>
+    <timeout>60</timeout>
+  </active-response>
+
+  
