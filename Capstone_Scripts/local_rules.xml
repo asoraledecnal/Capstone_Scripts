@@ -1,8 +1,9 @@
+sudo nano /var/ossec/etc/rules/local_rules.xml
 <group name="capstone_orchestration,">
 
   <!-- Rule 100001: Mass File Modification (Ransomware Behavior) -->
   <rule id="100001" level="10">
-    <if_matched_group>syscheck</if_matched_group>
+    <if_sid>550, 554</if_sid>
     <match>.encrypted</match>
     <description>Heuristic Alert: Ransomware file extension (.encrypted) detected.</description>
   </rule>
@@ -29,9 +30,7 @@
 
   <!-- Rule 100004: Suspicious Process Spawning (Living off the Land) -->
   <rule id="100004" level="12">
-    <category>ossec</category>
-    <decoded_as>json</decoded_as>
-    <match>powershell.exe</match>
+    <match>powershell.exe -ExecutionPolicy Bypass</match>
     <description>Heuristic Alert: Suspicious process spawning (Office application executing PowerShell).</description>
   </rule>
 
