@@ -1,17 +1,17 @@
-<!-- EXPLANATION: Binibigyan nito ng kakayahan ang Wazuh na basahin ang Ubuntu firewall logs -->
+<!-- EXPLANATION: This gives Wazuh the ability to read Ubuntu firewall logs -->
   <localfile>
     <log_format>syslog</log_format>
     <location>/var/log/syslog</location>
   </localfile>
 
-<!-- EXPLANATION: Dine-define nito yung Python SOAR script mo bilang isang executable command (Network) -->
+<!-- EXPLANATION: This defines your Python SOAR script as an executable command (Network) -->
   <command>
     <name>wazuh-orchestrator</name>
     <executable>wazuh_orchestrator.py</executable>
     <timeout_allowed>yes</timeout_allowed>
   </command>
   
-<!-- EXPLANATION: Dine-define ang process-kill script para sa native agent response (Endpoint) -->
+<!-- EXPLANATION: This defines the process-kill script for the native agent response (Endpoint) -->
   <command>
     <name>process-kill</name>
     <executable>process-kill</executable>

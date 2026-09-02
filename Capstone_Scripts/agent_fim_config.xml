@@ -1,6 +1,6 @@
 <agent_config>
   <syscheck>
-    <!-- EXPLANATION: Naka-realtime para the moment na maging .encrypted ang file, mag-a-alert agad -->
+    <!-- EXPLANATION: Set to realtime so that the moment a file becomes .encrypted, it alerts immediately -->
     <directories realtime="yes">/tmp/important_files</directories>
   </syscheck>
 </agent_config>

@@ -9,7 +9,7 @@
     <description>Heuristic Alert: Ransomware file extension (.encrypted) detected.</description>
   </rule>
 
-  <!-- Rule 100010: Base Rule para sa UFW Blocks -->
+  <!-- Rule 100010: Base Rule for UFW Blocks -->
   <rule id="100010" level="3">
     <if_sid>4100</if_sid>
     <match>[UFW BLOCK]</match>
@@ -24,7 +24,7 @@
     <description>Heuristic Alert: Internal port sweeping or network scanning detected.</description>
   </rule>
 
-  <!-- Rule 100011: Base Rule para sa Data Exfiltration metadata events -->
+  <!-- Rule 100011: Base Rule for Data Exfiltration metadata events -->
   <rule id="100011" level="3">
     <match>capstone_exfil_event</match>
     <description>Data exfiltration base telemetry event.</description>
@@ -39,7 +39,7 @@
     <description>Heuristic Alert: Potential data exfiltration to external IP address.</description>
   </rule>
 
-  <!-- Rule 100012: Base Rule para sa Suspicious Process metadata events -->
+  <!-- Rule 100012: Base Rule for Suspicious Process metadata events -->
   <rule id="100012" level="3">
     <match>capstone_susproc_event</match>
     <description>Suspicious process spawning base telemetry event.</description>
@@ -53,7 +53,7 @@
     <description>Heuristic Alert: Suspicious process spawning (Office application executing PowerShell).</description>
   </rule>
 
-  <!-- Rule 100013: Base Rule para sa Resource Exhaustion metadata events -->
+  <!-- Rule 100013: Base Rule for Resource Exhaustion metadata events -->
   <rule id="100013" level="3">
     <match>capstone_cryptojack_event</match>
     <description>Cryptojacking/resource exhaustion base telemetry event.</description>
@@ -67,7 +67,7 @@
     <description>Heuristic Alert: Sustained CPU/RAM resource exhaustion with external socket.</description>
   </rule>
 
-  <!-- Rule 100014: Base Rule para sa Lateral Auth metadata events -->
+  <!-- Rule 100014: Base Rule for Lateral Auth metadata events -->
   <rule id="100014" level="3">
     <match>capstone_lateralauth_event</match>
     <description>Lateral authentication base telemetry event.</description>
