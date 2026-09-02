@@ -3,52 +3,60 @@ GUIDELINES FOR TESTING PHASE OF ATTACKS
 ========================================================================
 
 --- PHASE 1: ENVIRONMENT RESET (GAWIN BAGO MAG-DEMO) ---
-Bago mag-simula ang anumang attack simulation, siguraduhing malinis ang logs at directories.
+Bago mag-simula ang anumang attack simulation, siguraduhing malinis ang logs at directories[cite: 14].
 
 1. I-clear ang Active Response logs para malinis ang monitor:
-   sudo truncate -s 0 /var/ossec/logs/active-responses.log
+   sudo truncate -s 0 /var/ossec/logs/active-responses.log[cite: 14]
 
 2. I-clear ang FIM directory (para sa Ransomware test):
-   sudo rm -rf /tmp/important_files/*
-   mkdir -p /tmp/important_files
+   sudo rm -rf /tmp/important_files/*[cite: 14]
+   mkdir -p /tmp/important_files[cite: 14]
 
 3. I-restart ang Wazuh Manager at Agent para ma-refresh ang sensors:
-   sudo systemctl restart wazuh-manager
-   sudo systemctl restart wazuh-agent
+   sudo systemctl restart wazuh-manager[cite: 14]
+   sudo systemctl restart wazuh-agent[cite: 14]
 
 
 --- PHASE 2: ATTACK EXECUTION & MONITORING ---
-Sundin ang sequence na ito para maipakita ang automated SOAR mitigation.
+Sundin ang sequence na ito para maipakita ang automated SOAR mitigation[cite: 14].
 
-1. Buksan ang Log Monitor sa kanang terminal:
-   sudo tail -f /var/ossec/logs/active-responses.log
+1. Buksan ang Log Monitor sa kanang terminal ng Wazuh Server:
+   sudo tail -f /var/ossec/logs/active-responses.log[cite: 14]
 
-2. Sa kaliwang terminal (remote_worker), patakbuhin ang napiling attack:
-   - Rule 100001 (Ransomware):  ./ransomware_sim.sh
-   - Rule 100002 (Port Sweep):  ./attack_scan.sh
-   - Rule 5763 (SSH Brute):     ./ssh_bruteforce.sh
-   - Or gamitin ang manual SSH brute force loop kung kailangan:
-     for i in {1..8}; do ssh -o StrictHostKeyChecking=no wazuhadmin@172.16.16.100; done
+2. (OPTIONAL - FOR CRYPTOJACKING TEST): Buksan ang System Monitor sa isa pang terminal para makita ang CPU spikes:
+   htop
 
-3. Abangan ang "Successfully blocked IP" sa kanan.
-4. Ipakita ang Sophos XG Web GUI para patunayan na na-add ang IP sa Wazuh_Blacklist_Group.
+3. Sa kaliwang terminal (Kali Linux o remote_worker), patakbuhin ang napiling attack[cite: 14]:
+   - Rule 5763 (SSH Brute-Force):     ./ssh_bruteforce.sh
+   - Rule 100001 (Ransomware):        ./ransomware_sim.sh
+   - Rule 100002 (Port Sweep):        ./attack_scan.sh
+   - Rule 100003 (Data Exfiltration): ./data_exfil.sh
+   - Rule 100004 (LotL / Sus Process): ./sus_process.sh
+   - Rule 100005 (Cryptojacking):     ./crypto_sim.sh
+   - Rule 100006 (Pass-the-Hash):     ./lateral_auth.sh
+   
+   (Fallback - manual SSH brute force loop kung kailangan)[cite: 14]:
+   for i in {1..8}; do ssh -o StrictHostKeyChecking=no wazuhadmin@172.16.16.100; done[cite: 14]
+
+4. Abangan ang "Successfully blocked IP" sa kanang terminal[cite: 14].
+5. Ipakita ang Sophos XG Web GUI para patunayan na na-add ang IP sa Wazuh_Blacklist_Group[cite: 14].
 
 
 --- PHASE 3: MASTER CHEAT SHEET (IMPORTANT COMMANDS) ---
 
-* WAZUH MANAGEMENT:
-  - Restart Manager:    sudo systemctl restart wazuh-manager
-  - View Live Logs:     sudo tail -f /var/ossec/logs/active-responses.log
-  - Clear Logs:         sudo truncate -s 0 /var/ossec/logs/active-responses.log
+* WAZUH MANAGEMENT[cite: 14]:
+  - Restart Manager:    sudo systemctl restart wazuh-manager[cite: 14]
+  - View Live Logs:     sudo tail -f /var/ossec/logs/active-responses.log[cite: 14]
+  - Clear Logs:         sudo truncate -s 0 /var/ossec/logs/active-responses.log[cite: 14]
+  - View CPU/RAM Load:  htop
 
-* NETWORK CONFIGURATIONS (BATANGAS HUB PC):
-  - I-edit ang Netplan: sudo nano /etc/netplan/00-installer-config.yaml
-  - Apply Netplan:      sudo netplan apply
-  (Note: Ang ens3 ay naka-static sa 172.16.16.20/24 na may routes papuntang 10.0.0.0/8 at 192.168.21.0/24 via 172.16.16.16)
+* NETWORK CONFIGURATIONS (BATANGAS HUB PC)[cite: 14]:
+  - I-edit ang Netplan: sudo nano /etc/netplan/00-installer-config.yaml[cite: 14]
+  - Apply Netplan:      sudo netplan apply[cite: 14]
+  (Note: Ang ens3 ay naka-static sa 172.16.16.20/24 na may routes papuntang 10.0.0.0/8 at 192.168.21.0/24 via 172.16.16.16)[cite: 14]
 
-* OPENSEARCH TELEMETRY SCRIPT:
-  - I-run ang custom Gemini AI script para humugot ng CPU/RAM logs:
-    python3 get_syscollector_logs.py
+* OPENSEARCH TELEMETRY SCRIPT[cite: 14]:
+  - I-run ang script para humugot ng CPU/RAM logs[cite: 14]:
+    python3 get_syscollector_logs.py[cite: 14]
 
 ========================================================================
-
