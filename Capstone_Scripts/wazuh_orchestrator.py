@@ -1,4 +1,3 @@
-PYTHON SCRIPT FOR sudo nano /var/ossec/active-response/bin/wazuh_orchestrator.py
 #!/usr/bin/env python3
 import sys
 import json
@@ -6,10 +5,13 @@ import requests
 import urllib3
 import time
 import random
+import os
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 LOG_FILE = "/var/ossec/logs/active-responses.log"
+STATE_FILE = "/tmp/wazuh_cooldown_cache.json"
+COOLDOWN_SECONDS = 300  # 5 minutes
 
 # --- CAPSTONE HEURISTIC WHITELISTS ---
 WHITELISTED_IPS = ["127.0.0.1", "172.16.16.100", "172.16.16.20", "172.16.16.16", "192.168.202.1"]
@@ -28,8 +30,49 @@ def log_message(msg):
     with open(LOG_FILE, "a") as f:
         f.write(f"wazuh_orchestrator: {msg}\n")
 
+def check_and_update_cooldown(ip):
+    """
+    Rule 2: Idempotency at Anti-API Spam (State Tracking)
+    Returns True if the IP is currently on cooldown, False otherwise.
+    """
+    state = {}
+    current_time = time.time()
+    
+    # Load state
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                state = json.load(f)
+        except Exception:
+            pass
+
+    # Check cooldown
+    last_action_time = state.get(ip, 0)
+    if current_time - last_action_time < COOLDOWN_SECONDS:
+        return True
+
+    # Update state
+    state[ip] = current_time
+    
+    # Cleanup old entries to avoid infinite growth
+    keys_to_delete = [k for k, v in state.items() if current_time - v >= COOLDOWN_SECONDS]
+    for k in keys_to_delete:
+        del state[k]
+
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f)
+    except Exception as e:
+        log_message(f"ERROR: Could not write to state file - {e}")
+        
+    return False
+
 # --- SOPHOS REST API FUNCTIONS ---
 def block_ip_on_sophos(ip):
+    if check_and_update_cooldown(ip):
+        log_message(f"INFO: IP {ip} is on cooldown. Dropping redundant API request.")
+        return
+
     sophos_ip = "172.16.16.16"
     xml_payload = f'''<Request><Login><Username>admin</Username><Password>St0rage_Master_Key</Password></Login><Set><IPHost><Name>Blocked_{ip}</Name><IPFamily>IPv4</IPFamily><HostType>IP</HostType><IPAddress>{ip}</IPAddress><HostGroupList><HostGroup>Wazuh_Blacklist_Group</HostGroup></HostGroupList></IPHost></Set></Request>'''
     url = f"https://{sophos_ip}:4444/webconsole/APIController"
@@ -102,41 +145,25 @@ def main():
         if is_whitelisted(target_ip):
             log_message(f"DEBUG: IP {target_ip} is Whitelisted. Ignoring Alert from Rule {rule_id}.")
         else:
+            # Rule 1: Strict Separation of Mitigation.
+            # Python script is ONLY a Network API dispatcher for Sophos (Perimeter).
+            
             # 1. SSH Brute Force
             if rule_id == "5712":
                 log_message(f"DEBUG: Rule {rule_id} (SSH) triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)
 
-            # 2. Ransomware Behavior
-            elif rule_id == "100001":
-                process_name = alert_payload.get("data", {}).get("process_name", "")
-                if process_name not in ["explorer.exe", "TiWorker.exe", "msiexec.exe"]:
-                    log_message(f"DEBUG: Rule 100001 (Ransomware) triggered. Isolating {target_ip}.")
-                    block_ip_on_sophos(target_ip)
+            # 2. Internal Port Sweeping
+            elif rule_id == "100002":
+                log_message(f"DEBUG: Rule 100002 (Port Sweeping) triggered. Blocking {target_ip}.")
+                block_ip_on_sophos(target_ip)
 
             # 3. Data Exfiltration
             elif rule_id == "100003":
                 log_message(f"DEBUG: Rule 100003 (Exfiltration) triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)
-
-            # 4. Cryptojacking / Resource Exhaustion
-            elif rule_id == "100005":
-                process_name = alert_payload.get("data", {}).get("process_name", "")
-                if process_name not in ["chrome.exe", "firefox.exe", "vmware-vmx.exe", "msedge.exe"]:
-                    log_message(f"DEBUG: Rule 100005 (Cryptojacking) triggered. Blocking {target_ip}.")
-                    block_ip_on_sophos(target_ip)
-
-            # 5. Internal Port Sweeping
-            elif rule_id == "100002":
-                log_message(f"DEBUG: Rule 100002 (Port Sweeping) triggered. Blocking {target_ip}.")
-                block_ip_on_sophos(target_ip)
-
-            # 6. Suspicious Process Spawning (Living off the Land)
-            elif rule_id == "100004":
-                log_message(f"DEBUG: Rule 100004 (LotL-PowerShell) triggered. Blocking {target_ip}.")
-                block_ip_on_sophos(target_ip)
-
-            # 7. Impossible Travel / Pass-the-Hash
+                
+            # 4. Pass-the-Hash / Lateral Auth (Network)
             elif rule_id == "100006":
                 log_message(f"DEBUG: Rule 100006 (Pass-the-Hash) triggered. Blocking {target_ip}.")
                 block_ip_on_sophos(target_ip)

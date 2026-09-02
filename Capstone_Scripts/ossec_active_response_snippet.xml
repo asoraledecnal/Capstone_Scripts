@@ -4,11 +4,18 @@
     <location>/var/log/syslog</location>
   </localfile>
 
-<!-- EXPLANATION: Dine-define nito yung Python SOAR script mo bilang isang executable command -->
+<!-- EXPLANATION: Dine-define nito yung Python SOAR script mo bilang isang executable command (Network) -->
   <command>
     <name>wazuh-orchestrator</name>
     <executable>wazuh_orchestrator.py</executable>
     <timeout_allowed>yes</timeout_allowed>
+  </command>
+  
+<!-- EXPLANATION: Dine-define ang process-kill script para sa native agent response (Endpoint) -->
+  <command>
+    <name>process-kill</name>
+    <executable>process-kill</executable>
+    <timeout_allowed>no</timeout_allowed>
   </command>
 
 <!-- Tier 1: Temporary Block (Auto-Unblock for External SSH) -->
@@ -19,11 +26,16 @@
     <timeout>60</timeout>
   </active-response>
 
-<!-- Tier 2: Permanent Quarantine (Manual SOC Unblock for Internal Threats) -->
+<!-- Tier 2: Permanent Quarantine via Perimeter Firewall (Manual SOC Unblock for Network Threats) -->
   <active-response>
     <command>wazuh-orchestrator</command>
     <location>server</location>
-    <rules_id>100001,100002,100003,100004,100005,100006</rules_id>
+    <rules_id>100002,100003,100006</rules_id>
   </active-response>
 
-  
+<!-- Tier 3: Native Agent Execution (Process Kill for Endpoint Threats) -->
+  <active-response>
+    <command>process-kill</command>
+    <location>local</location>
+    <rules_id>100001,100004,100005</rules_id>
+  </active-response>

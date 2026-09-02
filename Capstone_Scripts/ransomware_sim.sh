@@ -1,27 +1,34 @@
 #!/bin/bash
 # --- CAPSTONE ATTACK SCRIPT: RULE 100001 (RANSOMWARE BEHAVIOR) ---
+# Rule 3 (RA 10173): Metadata-only logging. No actual payloads or user data.
+#        Generated files contain ONLY placeholder markers, not simulated user content.
+# Rule 4 (Heuristic Validity): Mass file rename (.txt -> .encrypted) triggers
+#        Wazuh FIM (syscheck) which fires Rule 100001 via <match>.encrypted</match>.
 
-# Folder na binabantayan ng Wazuh FIM (File Integrity Monitoring)
 TARGET_DIR="/tmp/important_files"
+FILE_COUNT=10
 
-echo "Step 1: Creating dummy target directory at $TARGET_DIR..."
-mkdir -p $TARGET_DIR
+echo "[*] Step 1: Creating dummy target directory at $TARGET_DIR..."
+mkdir -p "$TARGET_DIR"
 
-echo "Step 2: Generating legitimate dummy files..."
-# Gagawa ng 10 normal na text files para may ma-hostage ang ransomware
-for i in {1..10}; do
-    echo "Confidential Data $i" > "$TARGET_DIR/document_$i.txt"
+echo "[*] Step 2: Generating placeholder files (metadata-only, no user data)..."
+for i in $(seq 1 $FILE_COUNT); do
+    # RA 10173 Compliant: File content is a non-sensitive placeholder marker only.
+    echo "CAPSTONE_PLACEHOLDER_FILE_$i" > "$TARGET_DIR/document_$i.txt"
 done
+echo "[+] $FILE_COUNT placeholder files created."
 
-# Bigyan ng 2 seconds ang Wazuh para ma-register na may bagong normal files
-sleep 2 
+# Allow Wazuh FIM 2 seconds to register the baseline files
+sleep 2
 
-echo "Step 3: Simulating Ransomware Encryption Phase..."
-# Hahanapin lahat ng .txt files at mabilisang papalitan ang extension
-for file in $TARGET_DIR/*.txt; do
-    # Papalitan ang .txt at gagawing .encrypted para i-trigger ang <match>.encrypted</match> sa rule mo
+echo "[*] Step 3: Simulating Ransomware Encryption Phase..."
+ENCRYPTED_COUNT=0
+for file in "$TARGET_DIR"/*.txt; do
     mv "$file" "${file}.encrypted"
-    echo "Encrypted: $file -> ${file}.encrypted"
+    ENCRYPTED_COUNT=$((ENCRYPTED_COUNT + 1))
+    # Metadata-only log: file path and timestamp, no file contents.
+    echo "[+] Encrypted ($ENCRYPTED_COUNT/$FILE_COUNT): $(basename "$file") -> $(basename "${file}.encrypted") at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 done
 
-echo "Attack simulation complete. Check Wazuh logs for syscheck alerts!"
+echo "[*] Attack simulation complete. $ENCRYPTED_COUNT files encrypted."
+echo "[*] Check Wazuh logs for syscheck alerts triggering Rule 100001."

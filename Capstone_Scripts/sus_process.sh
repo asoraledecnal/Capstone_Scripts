@@ -1,13 +1,20 @@
 #!/bin/bash
 # --- CAPSTONE ATTACK SCRIPT: RULE 100004 (SUSPICIOUS PROCESS SPAWNING) ---
+# Rule 3 (RA 10173): Metadata-only logging. No actual payloads or user data.
+# Rule 4 (Heuristic Validity): Generates multiple telemetry events to trigger
+#        frequency="2" timeframe="30" threshold in local_rules.xml (Rule 100004).
 
-echo "Simulating Living-off-the-Land (LotL) Attack..."
-echo "Spawning fake PowerShell process via MS Word..."
+SRC_IP="$(hostname -I | awk '{print $1}')"
 
-# --- COMMAND LINE BREAKDOWN ---
-# 1. logger: Isang built-in Linux command na nagsusulat nang direkta sa system log (/var/log/syslog).
-# 2. Plain text string: Nag-iiwan tayo ng malisyosong lagda na ginagaya ang isang Office app na nag-spawn ng PowerShell.
-# 3. Bakit plain text?: Para madaling masalo ng string matcher ng Wazuh nang hindi nagkakamali sa JSON decoding.
-logger "Suspicious process spawning anomaly: WINWORD.EXE executed powershell.exe -ExecutionPolicy Bypass -enc SQBFAFgA"
+echo "[*] Simulating Living-off-the-Land (LotL) Attack..."
+echo "[*] Spawning fake PowerShell process metadata via syslog..."
 
-echo "Attack simulation complete! Check Wazuh SIEM for Rule 100004."
+# Generate 3 metadata-only syslog events (exceeds frequency="2" threshold)
+for i in {1..3}; do
+    FAKE_PID=$((RANDOM % 9000 + 1000))
+    logger "capstone_susproc_event: src_ip=$SRC_IP parent_process=WINWORD.EXE child_process=powershell.exe child_pid=$FAKE_PID execution_policy=Bypass timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ) event_id=$i"
+    echo "[+] Event $i sent: parent=WINWORD.EXE child=powershell.exe pid=$FAKE_PID"
+    sleep 3
+done
+
+echo "[*] Attack simulation complete! Check Wazuh SIEM for Rule 100004."
