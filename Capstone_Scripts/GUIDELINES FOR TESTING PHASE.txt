@@ -1,5 +1,5 @@
 ========================================================================
-🛡️ QUEZON PROVINCE REGIONAL PROXY - CAPSTONE RUNBOOK & CHEAT SHEET 🛡️
+GUIDELINES FOR TESTING PHASE OF ATTACKS
 ========================================================================
 
 --- PHASE 1: ENVIRONMENT RESET (GAWIN BAGO MAG-DEMO) ---

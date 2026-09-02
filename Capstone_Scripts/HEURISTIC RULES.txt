@@ -1,73 +1,65 @@
 HEURISTIC RULES:
 
 1. SSH Brute-Force Authentication (Initial Access)
-Heuristic Baseline: Pag-detect ng multiple failed logins (Rule 5712, 5720) na nag-trigger ng correlation rule (Rule 5763) sa loob ng maikling oras.
-
-Flaw (False Positive): Mga IT admin na totoong nakalimutan lang ang password o nag-typo.
-
-Mitigation (Python Logic): Source Subnet Whitelisting. I-e-exclude natin ang IP block ng mismong IT Management VLAN. Kung ang attacker ay galing sa labas ng whitelist, papalo ang escalating timeout block sa Sophos.
-
-Test Method: I-run ang bash script (for i in {1..8}...) mula sa Spoke node (Laguna PC) papunta sa Wazuh server at ipakita ang auto-block sa Sophos WebAdmin.
+[Execution Node]: Kali Linux (External Attacker)[cite: 2]
+[Script Name]: ssh_bruteforce.sh
+Heuristic Baseline: Pag-detect ng multiple failed logins (Rule 5712, 5720) na nag-trigger ng correlation rule (Rule 5763) sa loob ng maikling oras.[cite: 2]
+Flaw (False Positive): Mga IT admin na totoong nakalimutan lang ang password o nag-typo.[cite: 2]
+Mitigation (Python Logic): Source Subnet Whitelisting. I-e-exclude natin ang IP block ng mismong IT Management VLAN. Kung ang attacker ay galing sa labas ng whitelist, papalo ang escalating timeout block sa Sophos.[cite: 2]
+Test Method: I-run ang bash script (for i in {1..8}...) mula sa Kali Linux papunta sa WAN IP ng firewall para ipakita ang auto-block sa Sophos WebAdmin.[cite: 2]
 
 2. Mass File Modification (Ransomware Behavior)
-Heuristic Baseline: Pag-detect ng FIM (File Integrity Monitoring) ng 10-15+ file modifications o renames sa loob ng 60 segundo.
-
-Flaw (False Positive): Nag-update ng system ang IT admin o nag-extract ng napakalaking .zip archive ng mga raw video/photography assets.
-
-Mitigation (Python Logic): Process Whitelisting. Babasahin ng script ang process name. I-i-ignore ang alert kung ang gumawa ay TiWorker.exe, msiexec.exe, o explorer.exe.
-
-Test Method: Gumawa ng simpleng bash script na mag-ge-generate at magre-rename ng 50 dummy .txt files to .locked sa loob ng 2 segundo.
+[Execution Node]: remote_worker (Insider Threat)[cite: 2]
+[Script Name]: ransomware_sim.sh
+Heuristic Baseline: Pag-detect ng FIM (File Integrity Monitoring) ng 10-15+ file modifications o renames sa loob ng 60 segundo.[cite: 2]
+Flaw (False Positive): Nag-update ng system ang IT admin o nag-extract ng napakalaking .zip archive ng mga raw video/photography assets.[cite: 2]
+Mitigation (Python Logic): Process Whitelisting. Babasahin ng script ang process name. I-i-ignore ang alert kung ang gumawa ay TiWorker.exe, msiexec.exe, o explorer.exe.[cite: 2]
+Test Method: Gumawa ng simpleng bash script na mag-ge-generate at magre-rename ng 50 dummy .txt files to .locked sa loob ng 2 segundo sa remote_worker.[cite: 2]
 
 3. Internal Port Sweeping (Lateral Movement)
-Heuristic Baseline: Isang internal PC na kumokonekta sa maraming magkakaibang ports ng iba't ibang servers at puro "connection rejected" ang nakukuha.
-
-Flaw (False Positive): Network management software (SolarWinds, PRTG) na nag-i-scan para sa uptime, o IT admin na nag-Nmap.
-
-Mitigation (Python Logic): Authorized Scanner Exclusion. Idadagdag natin sa script na i-pass ang block kung ang source_ip ay nakarehistro bilang official network scanner ng ahensya.
-
-Test Method: Mag-run ng aggressive Nmap scan (nmap -p 1-65535 -T4) mula sa isang unauthorized branch PC papunta sa regional proxy.
+[Execution Node]: remote_worker (Compromised Branch)[cite: 2]
+[Script Name]: attack_scan.sh
+Heuristic Baseline: Isang internal PC na kumokonekta sa maraming magkakaibang ports ng iba't ibang servers at puro "connection rejected" ang nakukuha.[cite: 2]
+Flaw (False Positive): Network management software (SolarWinds, PRTG) na nag-i-scan para sa uptime, o IT admin na nag-Nmap.[cite: 2]
+Mitigation (Python Logic): Authorized Scanner Exclusion. Idadagdag natin sa script na i-pass ang block kung ang source_ip ay nakarehistro bilang official network scanner ng ahensya.[cite: 2]
+Test Method: Mag-run ng aggressive Nmap scan (nmap -p 1-65535 -T4) mula sa remote_worker papunta sa regional proxy server.
 
 4. Data Exfiltration Anomaly (Large Outbound Traffic)
-Heuristic Baseline: Biglang nag-upload ng gigabytes na data ang isang endpoint papunta sa unknown public IP sa madaling araw.
-
-Flaw (False Positive): Authorized na pag-upload ng heavy media files papunta sa Google Drive, AWS S3, o OneDrive.
-
-Mitigation (Python Logic): Destination Whitelisting & Time-Condition. Iche-check ng script ang target IP. Kung pagmamay-ari ito ng kilalang cloud provider at nangyari sa office hours, ia-abort ang block. Iba-block lang kung kahina-hinala ang IP (hal. naka-host sa Russia/China).
-
-Test Method: Mag-simulate ng malaking SCP (Secure Copy) transfer papunta sa isang untrusted external IP sa EVE-NG Net cloud.
+[Execution Node]: remote_worker (Sending) papunta sa Kali Linux (Receiving)[cite: 2]
+[Script Name]: data_exfil.sh
+Heuristic Baseline: Biglang nag-upload ng gigabytes na data ang isang endpoint papunta sa unknown public IP sa madaling araw.[cite: 2]
+Flaw (False Positive): Authorized na pag-upload ng heavy media files papunta sa Google Drive, AWS S3, o OneDrive.[cite: 2]
+Mitigation (Python Logic): Destination Whitelisting & Time-Condition. Iche-check ng script ang target IP. Kung pagmamay-ari ito ng kilalang cloud provider at nangyari sa office hours, ia-abort ang block. Iba-block lang kung kahina-hinala ang IP (hal. naka-host sa Russia/China).[cite: 2]
+Test Method: I-run ang data_exfil.sh sa remote_worker na magpapanggap na nagpapadala ng 50MB payload papunta sa IP ng Kali Linux.[cite: 2]
 
 5. Suspicious Process Spawning (Living off the Land)
-Heuristic Baseline: Isang normal na app (tulad ng MS Word) na nag-spawn ng PowerShell o Command Prompt na may admin rights.
-
-Flaw (False Positive): Mga legitimate logon scripts (.bat o .ps1) na nag-ma-map ng network drives.
-
-Mitigation (Python Logic): Execution Argument Analysis. Titignan ng Wazuh at Python script ang eksaktong command. Iba-block lang kung may nakitang malicious flags tulad ng -enc (base64 obfuscation) o -ExecutionPolicy Bypass.
-
-Test Method: Mag-run ng PowerShell command na may -ExecutionPolicy Bypass mula sa command line ng Laguna PC.
+[Execution Node]: remote_worker (Compromised Branch)[cite: 2]
+[Script Name]: sus_process.sh
+Heuristic Baseline: Isang normal na app (tulad ng MS Word) na nag-spawn ng PowerShell o Command Prompt na may admin rights.[cite: 2]
+Flaw (False Positive): Mga legitimate logon scripts (.bat o .ps1) na nag-ma-map ng network drives.[cite: 2]
+Mitigation (Python Logic): Execution Argument Analysis. Titignan ng Wazuh at Python script ang eksaktong command. Iba-block lang kung may nakitang malicious flags tulad ng -enc (base64 obfuscation) o -ExecutionPolicy Bypass.[cite: 2]
+Test Method: Mag-run ng kahina-hinalang bash command (simulating malicious process spawning) mula sa command line ng remote_worker.
 
 6. Impossible Travel (Geo-Velocity Anomaly)
-Heuristic Baseline: Isang successful login mula sa Pilipinas, tapos makalipas ang 10 minuto ay may panibagong login mula sa kabilang panig ng mundo.
-
-Flaw (False Positive): Empleyado na gumagamit ng commercial VPN (NordVPN, ExpressVPN) habang nagtatrabaho sa bahay.
-
-Mitigation (Python Logic): ASN & Threat Intel Check. Kukunin ng script ang IP at iche-check ang Autonomous System Number (ASN). Kung flagged ito as Tor exit node, iba-block ng Sophos ang connection at i-lo-lock ang account.
-
-Test Method: Mag-login gamit ang local IP, tapos gumamit ng script para mag-login ulit gamit ang spoofed IP mula sa known Tor node address list.
+[Execution Node]: Kali Linux (External Attacker)[cite: 2]
+[Script Name]: geo_spoof.sh
+Heuristic Baseline: Isang successful login mula sa Pilipinas, tapos makalipas ang 10 minuto ay may panibagong login mula sa kabilang panig ng mundo.[cite: 2]
+Flaw (False Positive): Empleyado na gumagamit ng commercial VPN (NordVPN, ExpressVPN) habang nagtatrabaho sa bahay.[cite: 2]
+Mitigation (Python Logic): ASN & Threat Intel Check. Kukunin ng script ang IP at iche-check ang Autonomous System Number (ASN). Kung flagged ito as Tor exit node, iba-block ng Sophos ang connection at i-lo-lock ang account.[cite: 2]
+Test Method: Mag-login mula sa host PC, tapos gumamit ng spoofing script sa Kali Linux para mag-login ulit na parang nanggaling sa known Tor node address.[cite: 2]
 
 7. Anomalous Lateral Authentication (Pass-the-Hash)
-Heuristic Baseline: Isang standard user account na nag-login sa limang kritikal na regional servers sa loob ng dalawang minuto.
-
-Flaw (False Positive): Automated service accounts na nagba-backup ng database sa mga branch.
-
-Mitigation (Python Logic): Service Account Exclusion. I-e-exclude sa script ang mga usernames na nagtatapos sa _svc. Kapag regular user account ang gumawa, i-ba-block ng Sophos ang IP sa buong server VLAN.
-
-Test Method: Gumamit ng standard user credential at subukang mag-SSH nang mabilis sa tatlong magkakaibang node sa EVE-NG topology.
+[Execution Node]: remote_worker (Insider Threat)[cite: 2]
+[Script Name]: lateral_auth.sh
+Heuristic Baseline: Isang standard user account na nag-login sa limang kritikal na regional servers sa loob ng dalawang minuto.[cite: 2]
+Flaw (False Positive): Automated service accounts na nagba-backup ng database sa mga branch.[cite: 2]
+Mitigation (Python Logic): Service Account Exclusion. I-e-exclude sa script ang mga usernames na nagtatapos sa _svc. Kapag regular user account ang gumawa, i-ba-block ng Sophos ang IP sa buong server VLAN.[cite: 2]
+Test Method: Gumamit ng standard user credential at subukang mag-SSH nang mabilis sa tatlong magkakaibang node mula sa remote_worker.[cite: 2]
 
 8. Sustained Resource Exhaustion (Cryptojacking / C2)
-Heuristic Baseline: CPU/RAM na nakapako sa 95%+ ng 15 minuto, na may kasabay na kahina-hinalang outbound connection.
-
-Flaw (False Positive): Normal na heavy workload (rendering, opening 50 Chrome tabs, EVE-NG virtualization labs).
-
-Mitigation (Python Logic): Browser Whitelist & External Target Blocking. I-i-ignore ang CPU spike kung ang process ay chrome.exe o vmware.exe. Kung malware nga, ang iba-block ng script ay ang External Destination IP ng mining pool, hindi ang PC ng user, para hindi siya mawalan ng internet.
-
-Test Method: Mag-run ng stress-ng (CPU stress tester) habang may aktibong netcat (nc) session papunta sa isang external IP address. Ipakita na ang external IP lang ang pumasok sa Sophos blacklist.
+[Execution Node]: remote_worker (Insider Threat)[cite: 2]
+[Script Name]: crypto_sim.sh
+Heuristic Baseline: CPU/RAM na nakapako sa 95%+ ng 15 minuto, na may kasabay na kahina-hinalang outbound connection.[cite: 2]
+Flaw (False Positive): Normal na heavy workload (rendering, opening 50 Chrome tabs, EVE-NG virtualization labs).[cite: 2]
+Mitigation (Python Logic): Browser Whitelist & External Target Blocking. I-i-ignore ang CPU spike kung ang process ay chrome.exe o vmware.exe. Kung malware nga, ang iba-block ng script ay ang External Destination IP ng mining pool, hindi ang PC ng user, para hindi siya mawalan ng internet.[cite: 2]
+Test Method: Mag-run ng stress-ng (CPU stress tester) habang may aktibong netcat session papunta sa IP ng Kali Linux.[cite: 2]
