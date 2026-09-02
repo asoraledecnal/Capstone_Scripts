@@ -1,7 +1,7 @@
 # --- CAPSTONE ATTACK SCRIPT: RULE 5763 / 5712 (SSH BRUTEFORCE) ---
 
 #!/bin/bash
-TARGET="192.168.202.142"
+TARGET="10.10.10.11"
 USER="admin"
 
 echo "Initiating SSH Brute-Force Attack on $TARGET as external threat..."
