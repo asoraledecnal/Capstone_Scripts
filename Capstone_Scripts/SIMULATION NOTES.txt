@@ -1,4 +1,66 @@
 ========================================================================
+GUIDELINES FOR TESTING PHASE OF ATTACKS
+========================================================================
+
+--- PHASE 1: ENVIRONMENT RESET (GAWIN BAGO MAG-DEMO) ---
+Bago mag-simula ang anumang attack simulation, siguraduhing malinis ang logs at directories[cite: 14, 15].
+
+1. I-clear ang Active Response logs para malinis ang monitor:
+   sudo truncate -s 0 /var/ossec/logs/active-responses.log[cite: 14, 15]
+
+2. I-clear ang FIM directory (para sa Ransomware test):
+   sudo rm -rf /tmp/important_files/*[cite: 14, 15]
+   mkdir -p /tmp/important_files[cite: 14, 15]
+
+3. I-restart ang Wazuh Manager at Agent para ma-refresh ang sensors:
+   sudo systemctl restart wazuh-manager[cite: 14, 15]
+   sudo systemctl restart wazuh-agent[cite: 14, 15]
+
+
+--- PHASE 2: ATTACK EXECUTION & MONITORING ---
+Sundin ang sequence na ito para maipakita ang automated SOAR mitigation[cite: 14, 15].
+
+1. Buksan ang Log Monitor sa kanang terminal ng Wazuh Server:
+   sudo tail -f /var/ossec/logs/active-responses.log[cite: 14, 15]
+
+2. (OPTIONAL - FOR CRYPTOJACKING TEST): Buksan ang System Monitor sa isa pang terminal para makita ang CPU spikes:
+   htop[cite: 14, 15]
+
+3. Sa kaliwang terminal (Kali Linux o remote_worker), patakbuhin ang napiling attack[cite: 14, 15]:
+   - Rule 5763 (SSH Brute-Force):     ./ssh_bruteforce.sh[cite: 14, 15]
+   - Rule 100001 (Ransomware):        ./ransomware_sim.sh[cite: 14, 15]
+   - Rule 100002 (Port Sweep):        ./attack_scan.sh[cite: 14, 15]
+   - Rule 100003 (Data Exfiltration): ./data_exfil.sh[cite: 14, 15]
+   - Rule 100004 (LotL / Sus Process): ./sus_process.sh[cite: 14, 15]
+   - Rule 100005 (Cryptojacking):     ./crypto_sim.sh[cite: 14, 15]
+   - Rule 100006 (Pass-the-Hash):     ./lateral_auth.sh[cite: 14, 15]
+   
+   (Fallback - manual SSH brute force loop kung kailangan)[cite: 14, 15]:
+   for i in {1..8}; do ssh -o StrictHostKeyChecking=no wazuhadmin@172.16.16.100; done[cite: 14, 15]
+
+4. Abangan ang "Successfully blocked IP" sa kanang terminal[cite: 14, 15].
+5. Ipakita ang Sophos XG Web GUI para patunayan na na-add ang IP sa Wazuh_Blacklist_Group[cite: 14, 15].
+
+
+--- PHASE 3: MASTER CHEAT SHEET (IMPORTANT COMMANDS) ---
+
+* WAZUH MANAGEMENT[cite: 14, 15]:
+  - Restart Manager:    sudo systemctl restart wazuh-manager[cite: 14, 15]
+  - View Live Logs:     sudo tail -f /var/ossec/logs/active-responses.log[cite: 14, 15]
+  - Clear Logs:         sudo truncate -s 0 /var/ossec/logs/active-responses.log[cite: 14, 15]
+  - View CPU/RAM Load:  htop[cite: 14, 15]
+
+* NETWORK CONFIGURATIONS (BATANGAS HUB PC)[cite: 14, 15]:
+  - I-edit ang Netplan: sudo nano /etc/netplan/00-installer-config.yaml[cite: 14, 15]
+  - Apply Netplan:      sudo netplan apply[cite: 14, 15]
+  (Note: Ang ens3 ay naka-static sa 172.16.16.20/24 na may routes papuntang 10.0.0.0/8 at 192.168.21.0/24 via 172.16.16.16)[cite: 14, 15]
+
+* OPENSEARCH TELEMETRY SCRIPT[cite: 14, 15]:
+  - I-run ang script para humugot ng CPU/RAM logs[cite: 14, 15]:
+    python3 get_syscollector_logs.py[cite: 14, 15]
+
+
+========================================================================
 DICT REGIONAL 4A - SOAR ARCHITECTURE COMPREHENSIVE DOCUMENTATION
 PROJECT: HEURISTIC-BASED THREAT DETECTION & AUTOMATED MITIGATION
 ========================================================================
@@ -6,179 +68,175 @@ PROJECT: HEURISTIC-BASED THREAT DETECTION & AUTOMATED MITIGATION
 ------------------------------------------------------------------------
 1. NETWORK TOPOLOGY & IP ADDRESSING (EVE-NG ENVIRONMENT)
 ------------------------------------------------------------------------
-Ang network architecture ay nahahati sa tatlong pangunahing segments: ang ISP Core, ang Regional Hub (Batangas), at ang Provincial Branch (Laguna).
+Ang network architecture ay nahahati sa tatlong pangunahing segments: ang ISP Core, ang Regional Hub (Batangas), at ang Provincial Branch (Laguna)[cite: 16].
 
-[ISP Core Router - VyOS]
-Ang VyOS ay nagsisilbing backbone internet provider para sa simulation[cite: 3].
-* eth0 (WAN Link to Hub): 203.0.113.1/30[cite: 3]
-* eth1 (Remote Worker Link): 10.10.10.1/24[cite: 3]
-* eth2 (WAN Link to Branch): 100.64.0.1/30[cite: 3]
-* eth3 (External EVE-NG Bridge): 192.168.202.135/24[cite: 3]
+[ISP Core Router - VyOS][cite: 16]
+Ang VyOS ay nagsisilbing backbone internet provider para sa simulation[cite: 16].
+* eth0 (WAN Link to Hub): 203.0.113.1/30[cite: 16]
+* eth1 (Remote Worker Link): 10.10.10.1/24[cite: 16]
+* eth2 (WAN Link to Branch): 100.64.0.1/30[cite: 16]
+* eth3 (External EVE-NG Bridge): 192.168.202.135/24[cite: 16]
 
-[Regional Hub - Batangas - Sophos XG Firewall]
-* Port A (LAN): 172.16.16.16/24
-* Port B (WAN): 203.0.113.2/30
-* Wazuh Server (Manager/Orchestrator): 172.16.16.100/24[cite: 3]
-* Batangas Management PC: 172.16.16.20/24[cite: 3]
+[Regional Hub - Batangas - Sophos XG Firewall][cite: 16]
+* Port A (LAN): 172.16.16.16/24[cite: 16]
+* Port B (WAN): 203.0.113.2/30[cite: 16]
+* Wazuh Server (Manager/Orchestrator): 172.16.16.100/24[cite: 16]
+* Batangas Management PC: 172.16.16.20/24[cite: 16]
 
-[Provincial Branch - Laguna - pfSense Firewall]
-* WAN Interface: 100.64.0.2/30
-* LAN Interface: 192.168.21.1/24
-* Laguna Management PC: 192.168.21.12/24[cite: 3]
+[Provincial Branch - Laguna - pfSense Firewall][cite: 16]
+* WAN Interface: 100.64.0.2/30[cite: 16]
+* LAN Interface: 192.168.21.1/24[cite: 16]
+* Laguna Management PC: 192.168.21.12/24[cite: 16]
 
-[Remote Worker Setup]
-* Physical/WAN IP: 10.10.10.11/24[cite: 3]
-* VPN Tunnel IP (tun0): 10.81.0.2/24[cite: 3]
-* Attacker Node (Kali Linux): 192.168.202.144
+[Remote Worker Setup][cite: 16]
+* Physical/WAN IP: 10.10.10.11/24[cite: 16]
+* VPN Tunnel IP (tun0): 10.81.0.2/24[cite: 16]
+* Attacker Node (Kali Linux): 192.168.202.144[cite: 16]
 
 ------------------------------------------------------------------------
 2. SOPHOS XG FIREWALL CONFIGURATIONS (REGIONAL HUB)
 ------------------------------------------------------------------------
-A. FIREWALL RULES & POLICIES HIERARCHY
-Ang pagkakasunod-sunod ng rules (Top-to-Bottom) ay kritikal sa SOAR architecture. Ang automated block rule ay laging nasa unahan upang ma-drop agad ang malicious traffic bago ito umabot sa "Allow" policies.
+A. FIREWALL RULES & POLICIES HIERARCHY[cite: 16]
+Ang pagkakasunod-sunod ng rules (Top-to-Bottom) ay kritikal sa SOAR architecture. Ang automated block rule ay laging nasa unahan upang ma-drop agad ang malicious traffic bago ito umabot sa "Allow" policies[cite: 16].
 
-* Rule #9 [SOAR_Auto_Block]: Action=Drop | Source Zone=Any | Source Host=Wazuh_Blacklist_Group | Destination=Any
-* Rule #8 [Allow_Kali_Attacker]: Action=Accept | Source=WAN | Destination=LAN (For simulation access only)
-* Rule #3 [Allow_Laguna_IPSec_to_Hub]: Action=Accept | Source=LAN, VPN | Destination=LAN, VPN
-* Rule #1 [Auto_added_MTA]: Action=Accept | Source=Any | Destination=Any | Service=SMTP
-* Rule #7 [Wazuh_Outbound_Internet]: Action=Accept | Source=LAN (wazuh-server) | Destination=WAN
-* Rule #2 [#Default_Network_Policy]: Action=Accept | Source=LAN | Destination=WAN
-* Rule #5 [Allow_SSLVPN_Internal]: Action=Accept | Source=VPN | Destination=LAN
-* Rule #6 [Allow_SSLVPN_Internet]: Action=Accept | Source=VPN | Destination=WAN
+* Rule #9 [SOAR_Auto_Block]: Action=Drop | Source Zone=Any | Source Host=Wazuh_Blacklist_Group | Destination=Any[cite: 16]
+* Rule #8 [Allow_Kali_Attacker]: Action=Accept | Source=WAN | Destination=LAN (For simulation access only)[cite: 16]
+* Rule #3 [Allow_Laguna_IPSec_to_Hub]: Action=Accept | Source=LAN, VPN | Destination=LAN, VPN[cite: 16]
+* Rule #1 [Auto_added_MTA]: Action=Accept | Source=Any | Destination=Any | Service=SMTP[cite: 16]
+* Rule #7 [Wazuh_Outbound_Internet]: Action=Accept | Source=LAN (wazuh-server) | Destination=WAN[cite: 16]
+* Rule #2 [#Default_Network_Policy]: Action=Accept | Source=LAN | Destination=WAN[cite: 16]
+* Rule #5 [Allow_SSLVPN_Internal]: Action=Accept | Source=VPN | Destination=LAN[cite: 16]
+* Rule #6 [Allow_SSLVPN_Internet]: Action=Accept | Source=VPN | Destination=WAN[cite: 16]
 
-B. IPSEC SITE-TO-SITE VPN (HUB TO SPOKE)
-* Name: Laguna_Provincial_Spoke
-* Connection Type: Policy-based
-* Gateway Type: Respond only
-* Authentication: Preshared Key (PSK)
-* Local Gateway: PortB (203.0.113.2)
-* Remote Gateway: 100.64.0.2
-* Local ID: 203.0.113.2 (IP Address)
-* Remote ID: laguna-spoke@dict.gov.ph (Email)
-* Local Subnet: Any
-* Remote Subnet: DICT_Laguna_Spoke_LAN
+B. IPSEC SITE-TO-SITE VPN (HUB TO SPOKE)[cite: 16]
+* Name: Laguna_Provincial_Spoke[cite: 16]
+* Connection Type: Policy-based[cite: 16]
+* Gateway Type: Respond only[cite: 16]
+* Authentication: Preshared Key (PSK)[cite: 16]
+* Local Gateway: PortB (203.0.113.2)[cite: 16]
+* Remote Gateway: 100.64.0.2[cite: 16]
+* Local ID: 203.0.113.2 (IP Address)[cite: 16]
+* Remote ID: laguna-spoke@dict.gov.ph (Email)[cite: 16]
+* Local Subnet: Any[cite: 16]
+* Remote Subnet: DICT_Laguna_Spoke_LAN[cite: 16]
 
-C. SSL VPN (REMOTE ACCESS)
-* Name: DICT_Remote_Admins
-* Policy Members: vpn_admin
-* Tunnel Access: "Use as default gateway" is ENABLED (Full Tunneling para dumaan sa firewall inspection ang lahat ng internet traffic ng remote user).
+C. SSL VPN (REMOTE ACCESS)[cite: 16]
+* Name: DICT_Remote_Admins[cite: 16]
+* Policy Members: vpn_admin[cite: 16]
+* Tunnel Access: "Use as default gateway" is ENABLED (Full Tunneling para dumaan sa firewall inspection ang lahat ng internet traffic ng remote user)[cite: 16].
 
-D. SYSTEM AUTHENTICATION & USERS
-* vpn_admin: User Type = User. Ginagamit para sa secure SSL VPN access ng remote workers.
-* wazuh_api_user: User Type = Administrator. Naka-lock sa "API_Access_Only" profile para maiwasan ang unauthorized GUI login. Ito ang ginagamit ng Python SOAR orchestrator para mag-inject ng block commands sa Sophos.
+D. SYSTEM AUTHENTICATION & USERS[cite: 16]
+* vpn_admin: User Type = User. Ginagamit para sa secure SSL VPN access ng remote workers[cite: 16].
+* wazuh_api_user: User Type = Administrator. Naka-lock sa "API_Access_Only" profile para maiwasan ang unauthorized GUI login. Ito ang ginagamit ng Python SOAR orchestrator para mag-inject ng block commands sa Sophos[cite: 16].
 
 ------------------------------------------------------------------------
 3. PFSENSE FIREWALL CONFIGURATIONS (PROVINCIAL BRANCH)
 ------------------------------------------------------------------------
-A. IPSEC TUNNEL CONFIGURATIONS
-* Phase 1: Mutual PSK, AES (256-bit), SHA256, DH Group 14 (2048-bit).
-* Phase 2: ESP, AES (256-bit), SHA256. Local Subnet=LAN, Remote Subnet=172.16.16.0/24.
+A. IPSEC TUNNEL CONFIGURATIONS[cite: 16]
+* Phase 1: Mutual PSK, AES (256-bit), SHA256, DH Group 14 (2048-bit)[cite: 16].
+* Phase 2: ESP, AES (256-bit), SHA256. Local Subnet=LAN, Remote Subnet=172.16.16.0/24[cite: 16].
 
-B. WAN FIREWALL RULES (FOR CAPSTONE SIMULATION)
-* Action: Pass
-* Interface: WAN
-* Protocol: IPv4 Any
-* Source: Single host or alias (192.168.202.144) -> IP ito ng Kali Linux.
-* Destination: WAN Address
-* Rationale: Ang Principle of Least Privilege ay ipinatupad dito. Imbes na i-allow ang "Any" source, tanging ang IP lamang ng Attacker Node (Kali) ang pinapasok para magkaroon ng controlled penetration testing environment nang hindi na-e-expose ang branch network sa external noise. Sa tunay na DICT deployment, tatanggalin ang rule na ito para umiral ang strict Implicit Deny.
+B. WAN FIREWALL RULES (FOR CAPSTONE SIMULATION)[cite: 16]
+* Action: Pass[cite: 16]
+* Interface: WAN[cite: 16]
+* Protocol: IPv4 Any[cite: 16]
+* Source: Single host or alias (192.168.202.144) -> IP ito ng Kali Linux[cite: 16].
+* Destination: WAN Address[cite: 16]
+* Rationale: Ang Principle of Least Privilege ay ipinatupad dito. Imbes na i-allow ang "Any" source, tanging ang IP lamang ng Attacker Node (Kali) ang pinapasok para magkaroon ng controlled penetration testing environment nang hindi na-e-expose ang branch network sa external noise. Sa tunay na DICT deployment, tatanggalin ang rule na ito para umiral ang strict Implicit Deny[cite: 16].
 
 ------------------------------------------------------------------------
 4. HEURISTIC RULES & SOAR ORCHESTRATOR LOGIC
 ------------------------------------------------------------------------
-Ang Wazuh Manager ang nagsisilbing SIEM at HIDS(Host-Based Intrusion Detection System) na sumasalo ng mga logs mula sa endpoints at firewalls.
+Ang Wazuh Manager ang nagsisilbing SIEM at HIDS(Host-Based Intrusion Detection System) na sumasalo ng mga logs mula sa endpoints at firewalls[cite: 16].
 
-[Core Behavioral Analytics]
-* Rule 5763 (SSH Brute-Force): Nadi-detect ang multiple failed logins na nag-trigger ng correlation rule[cite: 2].
-* Rule 100001 (Ransomware): Nadi-detect ang mass file modification (FIM) ng 10+ renames to .locked sa loob ng 60 seconds[cite: 2].
-* Rule 100002 (Internal Port Sweeping): Pag-detect ng mga rejected internal connections na parang Nmap scan[cite: 2].
-* Rule 100003 (Data Exfiltration): Pag-upload ng malalaking payload (anomaly) palabas ng network[cite: 2].
-* Rule 100004 (Living off the Land): Nadi-detect ang pag-spawn ng unauthorized PowerShell processes na may "-ExecutionPolicy Bypass"[cite: 2].
-* Rule 100005 (Cryptojacking): Pag-monitor ng sustained 95%+ CPU spikes (via stress-ng) na may active C2 outbound sockets[cite: 2].
-* Rule 100006 (Pass-the-Hash): Mabilisang multiple authentications sa magkakaibang internal servers (Lateral Movement)[cite: 2].
+[Core Behavioral Analytics][cite: 16]
+* Rule 5763 (SSH Brute-Force): Nadi-detect ang multiple failed logins na nag-trigger ng correlation rule[cite: 16].
+* Rule 100001 (Ransomware): Nadi-detect ang mass file modification (FIM) ng 10+ renames to .locked sa loob ng 60 seconds[cite: 16].
+* Rule 100002 (Internal Port Sweeping): Pag-detect ng mga rejected internal connections na parang Nmap scan[cite: 16].
+* Rule 100003 (Data Exfiltration): Pag-upload ng malalaking payload (anomaly) palabas ng network[cite: 16].
+* Rule 100004 (Living off the Land): Nadi-detect ang pag-spawn ng unauthorized PowerShell processes na may "-ExecutionPolicy Bypass"[cite: 16].
+* Rule 100005 (Cryptojacking): Pag-monitor ng sustained 95%+ CPU spikes (via stress-ng) na may active C2 outbound sockets[cite: 16].
+* Rule 100006 (Pass-the-Hash): Mabilisang multiple authentications sa magkakaibang internal servers (Lateral Movement)[cite: 16].
 
-[Automated Mitigation (wazuh_orchestrator.py)]
-Kapag pumalo ang alinman sa mga rules, hindi na ito nangangailangan ng manual intervention. 
-1. Titignan ng Python logic kung ang IP ay kasama sa "Whitelist" (e.g., IT Admin Subnets, authorized network scanners)[cite: 2].
-2. Ipapa-ignore ang alert kung ang process ay lehitimo (e.g., TiWorker.exe, chrome.exe)[cite: 2].
-3. Kung kumpirmadong malicious, magpapadala ang script ng XML payload sa REST API ng Sophos XG gamit ang wazuh_api_user credentials.
-4. I-a-add ng Sophos ang target IP sa Wazuh_Blacklist_Group, at agad mapuputol ang koneksyon dahil sa Rule #9 (SOAR_Auto_Block).
+[Automated Mitigation (wazuh_orchestrator.py)][cite: 16]
+Kapag pumalo ang alinman sa mga rules, hindi na ito nangangailangan ng manual intervention[cite: 16]. 
+1. Titignan ng Python logic kung ang IP ay kasama sa "Whitelist" (e.g., IT Admin Subnets, authorized network scanners)[cite: 16].
+2. Ipapa-ignore ang alert kung ang process ay lehitimo (e.g., TiWorker.exe, chrome.exe)[cite: 16].
+3. Kung kumpirmadong malicious, magpapadala ang script ng XML payload sa REST API ng Sophos XG gamit ang wazuh_api_user credentials[cite: 16].
+4. I-a-add ng Sophos ang target IP sa Wazuh_Blacklist_Group, at agad mapuputol ang koneksyon dahil sa Rule #9 (SOAR_Auto_Block)[cite: 16].
 
 ------------------------------------------------------------------------
 5. CAPSTONE PRESENTATION RUNBOOK (OPERATIONS GUIDE)
 ------------------------------------------------------------------------
-PHASE 1: ENVIRONMENT RESET (BAGO MAG-DEMO)
-1. I-clear ang Active Response logs: sudo truncate -s 0 /var/ossec/logs/active-responses.log[cite: 1]
-2. I-clear ang FIM directory (para sa Ransomware test): sudo rm -rf /tmp/important_files/* at mkdir -p /tmp/important_files[cite: 1]
-3. I-restart ang Wazuh Manager at Agent: sudo systemctl restart wazuh-manager at sudo systemctl restart wazuh-agent[cite: 1]
+PHASE 1: ENVIRONMENT RESET (BAGO MAG-DEMO)[cite: 16]
+1. I-clear ang Active Response logs: sudo truncate -s 0 /var/ossec/logs/active-responses.log[cite: 16]
+2. I-clear ang FIM directory (para sa Ransomware test): sudo rm -rf /tmp/important_files/* at mkdir -p /tmp/important_files[cite: 16]
+3. I-restart ang Wazuh Manager at Agent: sudo systemctl restart wazuh-manager at sudo systemctl restart wazuh-agent[cite: 16]
 
-PHASE 2: ATTACK EXECUTION & MONITORING
-1. Buksan ang Log Monitor sa kanang terminal: sudo tail -f /var/ossec/logs/active-responses.log[cite: 1]
-2. Sa kaliwang terminal, i-execute ang scripts (e.g., ./ransomware_sim.sh, ./attack_scan.sh, ./ssh_bruteforce.sh)[cite: 1].
-3. Abangan ang prompt na "Successfully blocked IP"[cite: 1].
-4. I-refresh ang Sophos XG Web GUI at ipakita sa panel na pumasok ang attacker IP sa Host Group.
+PHASE 2: ATTACK EXECUTION & MONITORING[cite: 16]
+1. Buksan ang Log Monitor sa kanang terminal: sudo tail -f /var/ossec/logs/active-responses.log[cite: 16]
+2. Sa kaliwang terminal, i-execute ang scripts (e.g., ./ransomware_sim.sh, ./attack_scan.sh, ./ssh_bruteforce.sh)[cite: 16].
+3. Abangan ang prompt na "Successfully blocked IP"[cite: 16].
+4. I-refresh ang Sophos XG Web GUI at ipakita sa panel na pumasok ang attacker IP sa Host Group[cite: 16].
 
 ------------------------------------------------------------------------
 6. EVE-NG MAINTENANCE & TROUBLESHOOTING
 ------------------------------------------------------------------------
-* Sophos License Renewal: Kung ma-expire ang firewall license sa lab, mag-download ng system backup (.tar file)[cite: 3].
-* I-wipe ang Sophos node, mag-generate ng bagong evaluation serial sa Sophos Central, i-configure ang PortB (203.0.113.2/30, Gateway 203.0.113.1), i-activate ang bagong serial, at i-restore ang backup file para bumalik ang lahat ng rules at VPN settings[cite: 3].
-* Passwords Reference:
-  - Sophos: admin | St0rage_Master_Key[cite: 3]
-  - pfSense (192.168.21.1): admin | delarosa1106 | PSK: Laguna_Spoke_DICT_Capstone123![cite: 3]
-  - Wazuh API: wazuh_api_user | St0rage_Master_Key[cite: 3]
+* Sophos License Renewal: Kung ma-expire ang firewall license sa lab, mag-download ng system backup (.tar file)[cite: 16].
+* I-wipe ang Sophos node, mag-generate ng bagong evaluation serial sa Sophos Central, i-configure ang PortB (203.0.113.2/30, Gateway 203.0.113.1), i-activate ang bagong serial, at i-restore ang backup file para bumalik ang lahat ng rules at VPN settings[cite: 16].
 
-========================================================================
+* Passwords Reference:[cite: 16]
+  - EVE-NG terminal: root | eve[cite: 16]
+  - EVE-NG website: admin | eve[cite: 16]
+  - Laguna branch/regional hub: delarosa1106[cite: 16]
+  - SOPHOS terminal: St0rage_Master_Key[cite: 16]
+  - PFSENSE website(192.168.21.1): admin | delarosa1106 | laguna-spoke.dict.gov.ph | admin@192.168.21.12 | PSK: Laguna_Spoke_DICT_Capstone123![cite: 16]
+  - Sophos Firewall: admin | St0rage_Master_Key[cite: 16]
+  - VyOS: vyos | vyos[cite: 16]
+  - remote vpn: vpn_admin | St0rage_Master_Key[cite: 16]
+  - wazuh-server: wazuhadmin | delarosa1106[cite: 16]
+  - wazuh-webdashboard: admin | ki3w0ObfD64aKoJ38o*EguNMB4FsJV0.[cite: 16]
+  - wazuh-api: wazuh_api_user | St0rage_Master_Key | api@dict4a-lab.local[cite: 16]
 
-PASSWORDS:
+Kumpletong Sophos Firewall License Renewal & Reconfiguration Guide[cite: 16]
+1. Mag-download ng system backup sa lumang Sophos web GUI (System > Backup & firmware > Backup now) at tandaan ang encryption password[cite: 16].
+2. Gumawa ng panibagong account sa Sophos Central portal gamit ang bagong email address[cite: 16].
+3. I-click ang "Try virtual firewall" sa portal at kopyahin ang bagong evaluation serial number (nagsisimula sa letrang "V")[cite: 16].
+4. I-stop at i-Wipe ang mismong Sophos firewall node sa EVE-NG topology[cite: 16].
+5. I-start ulit ang node at buksan ang web setup GUI (https://172.16.16.16:4444) gamit ang iyong virtual admin machine[cite: 16].
+6. I-configure nang manual ang internet routing (PortB)[cite: 16]:
+   - IP address: 203.0.113.2[cite: 16]
+   - Subnet: /30 (255.255.255.252)[cite: 16]
+   - Gateway IP: 203.0.113.1 (IP ng VyOS router natin)[cite: 16]
+   - DNS server: 8.8.8.8 (Google DNS)[cite: 16]
+7. Gumawa ng temporary admin password, lagyan ng temporary hostname, at i-set ang time zone sa Asia/Manila. Siguraduhing naka-check ang auto-update firmware[cite: 16].
+8. I-paste ang bagong Serial Number na kinopya mo mula sa Sophos portal para ma-activate ang lisensya[cite: 16].
+9. I-click ang "Skip to finish" sa ibaba ng "Basic setup is complete" page para i-bypass ang paggawa ng manual LAN policies[cite: 16].
+10. Hayaang mag-update at mag-reboot: Maghihintay ka rito habang dina-download at ini-install ng firewall ang latest firmware pabalik sa v22.0.1[cite: 16].
+11. I-Restore ang iyong orihinal na configuration: Pagkatapos ng reboot, mag-login gamit ang temporary password, pumunta sa System > Backup & firmware > Backup & restore, i-upload ang .tar backup file, ilagay ang encryption password, at i-click ang Upload and restore[cite: 16].
 
-EVE-NG terminal: root | eve
-EVE-NG website: admin | eve
-Laguna branch/regional hub: delarosa1106
-SOPHOS terminal: St0rage_Master_Key
-PFSENSE website(192.168.21.1): admin | delarosa1106 | laguna-spoke.dict.gov.ph | admin@192.168.21.12 | PSK: Laguna_Spoke_DICT_Capstone123!
-Sophos Firewall: admin | St0rage_Master_Key |
-VyOS: vyos | vyos
-remote vpn: vpn_admin | St0rage_Master_Key
-wazuh-server: wazuhadmin | delarosa1106
-wazuh-webdashboard: admin | ki3w0ObfD64aKoJ38o*EguNMB4FsJV0.
-wazuh-api: wazuh_api_user | St0rage_Master_Key | api@dict4a-lab.local
+Backup Firewall Licenses:[cite: 16]
+- 2nd Firewall License: V01001PFH6WM60A[cite: 16]
+- 3rd Firewall License: V010012K33X4TBC[cite: 16]
 
-=========================================
-Kumpletong Sophos Firewall License Renewal & Reconfiguration Guide
-Mag-download ng system backup sa lumang Sophos web GUI (System > Backup & firmware > Backup now) at tandaan ang encryption password.
+------------------------------------------------------------------------
+7. ADVANCED ROUTING CONFIGURATIONS (SIMULATION BYPASS)
+------------------------------------------------------------------------
+Upang maging matagumpay ang external attack simulation (mula Kali Linux papunta sa Remote Worker), kinakailangang i-bypass pansamantala ang default routing behavior ng mga nodes. Dahil naka-Full Tunnel ang SSL VPN ng remote worker (tun0), lahat ng return traffic ay pilit na ipinapadala sa Sophos XG Hub, kaya nagkakaroon ng 100% packet loss kapag sinusubukan itong i-ping ng external attacker.
 
-Gumawa ng panibagong account sa Sophos Central portal gamit ang bagong email address.
+Narito ang mga ipinatupad na Static Routes para maayos ang asymmetric routing problem sa simulation environment:
 
-I-click ang "Try virtual firewall" sa portal at kopyahin ang bagong evaluation serial number (nagsisimula sa letrang "V").
+1. KALI LINUX (ATTACKER NODE) ROUTING:
+   - Problem: Ang default gateway ng VMware (192.168.202.2) ay hindi alam ang daan papunta sa 10.10.10.0/24 subnet.
+   - Solution: Nagdagdag ng explicit route papunta sa VyOS ISP Core.
+   - Command Applied: 
+     sudo ip route add 10.10.10.0/24 via 192.168.202.135
 
-I-stop at i-Wipe ang mismong Sophos firewall node sa EVE-NG topology.
+2. REMOTE WORKER (TARGET NODE) RETURN PATH:
+   - Problem: Ang default gateway ay na-override ng tun0 (VPN), kaya ang reply packets papunta kay Kali (192.168.202.144) ay naliligaw papasok sa Batangas Hub.
+   - Solution: Nagdagdag ng static route para i-force ang traffic na dumaan sa physical interface (ens3) papunta sa VyOS gateway (10.10.10.1).
+   - Command Applied:
+     sudo ip route add 192.168.202.0/24 via 10.10.10.1
 
-I-start ulit ang node at buksan ang web setup GUI ([https://172.16.16.16:4444](https://172.16.16.16:4444)) gamit ang iyong virtual admin machine.
-
-I-configure nang manual ang internet routing (PortB):
-
-IP address: 203.0.113.2
-
-Subnet: /30 (255.255.255.252)
-
-Gateway IP: 203.0.113.1 (IP ng VyOS router natin)
-
-DNS server: 8.8.8.8 (Google DNS)
-
-Gumawa ng temporary admin password, lagyan ng temporary hostname, at i-set ang time zone sa Asia/Manila. Siguraduhing naka-check ang auto-update firmware.
-
-I-paste ang bagong Serial Number na kinopya mo mula sa Sophos portal para ma-activate ang lisensya.
-
-I-click ang "Skip to finish" sa ibaba ng "Basic setup is complete" page para i-bypass ang paggawa ng manual LAN policies.
-
-Hayaang mag-update at mag-reboot: Maghihintay ka rito habang dina-download at ini-install ng firewall ang latest firmware pabalik sa v22.0.1 (ito yung step na nasa screenshot mo).
-
-I-Restore ang iyong orihinal na configuration: Pagkatapos ng reboot, mag-login gamit ang temporary password, pumunta sa System > Backup & firmware > Backup & restore, i-upload ang .tar backup file, ilagay ang encryption password, at i-click ang Upload and restore.
-
-2nd Firewall License- V01001PFH6WM60A
-3rd Firewall License- V010012K33X4TBC
-
-
-
-
-
+RESULT:
+Pagkatapos mai-apply ang mga routing configurations, naging successful ang end-to-end communication. Nang i-execute ang `./ssh_bruteforce.sh` laban sa 10.10.10.11, matagumpay itong na-detect ng Wazuh Agent at nag-trigger ang SOAR Orchestrator para i-block ang attacker IP sa Sophos XG.
