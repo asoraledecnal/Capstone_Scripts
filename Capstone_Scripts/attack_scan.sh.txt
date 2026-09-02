@@ -10,6 +10,6 @@ echo "Starting aggressive Nmap scan on $TARGET..."
 # -p 1-65535: Scans all 65k TCP ports para ma-trigger ang UFW block threshold.
 # -T4: Aggressive timing (mabilis ang pagbato ng packets).
 # -A: OS detection at script scanning para mas maingay sa network logs.
-nmap -p 1-65535 -T4 -A -v $TARGET
+nmap -p 1-65535 -T4 -Pn -A -v $TARGET
 
 echo "Scan complete. Check Wazuh alerts (OpenSearch dashboard) for scanning activities."
